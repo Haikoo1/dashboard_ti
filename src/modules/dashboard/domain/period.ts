@@ -131,6 +131,24 @@ export function resolvePeriod(input: PeriodInput, now: Date): DashboardRange {
   };
 }
 
+/**
+ * Lê e resolve o período pedido no endereço. Qualquer problema (parâmetro
+ * inválido, data no futuro, intervalo grande demais) cai no período padrão,
+ * com uma mensagem explicando o motivo.
+ */
+export function resolvePeriodFromParams(params: SearchParams, now: Date): { range: DashboardRange; error: string | null } {
+  const parsed = parsePeriodParams(params);
+  try {
+    return { range: resolvePeriod(parsed.input, now), error: parsed.error };
+  } catch (e) {
+    if (!(e instanceof PeriodError)) throw e;
+    return {
+      range: resolvePeriod({ periodo: DEFAULT_PERIOD }, now),
+      error: `${e.message} Exibindo: ${PERIOD_LABEL[DEFAULT_PERIOD].toLowerCase()}.`,
+    };
+  }
+}
+
 export function suggestGranularity(days: number): Granularity {
   if (days <= 31) return "dia";
   if (days <= 120) return "semana";

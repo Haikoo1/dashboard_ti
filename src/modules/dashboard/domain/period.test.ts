@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PeriodError, parsePeriodParams, resolvePeriod } from "./period";
+import { PeriodError, parsePeriodParams, resolvePeriod, resolvePeriodFromParams } from "./period";
 
 // Quarta-feira, 18/03/2026, 12:00 em Brasília.
 const NOW = new Date("2026-03-18T15:00:00Z");
@@ -85,5 +85,19 @@ describe("parsePeriodParams", () => {
       expect(parsed.input).toEqual({ periodo: "30d" });
       expect(parsed.error).toMatch(/inválido/);
     }
+  });
+});
+
+describe("resolvePeriodFromParams", () => {
+  it("período válido do endereço", () => {
+    const { range, error } = resolvePeriodFromParams({ periodo: "7d" }, NOW);
+    expect(range.key).toBe("7d");
+    expect(error).toBeNull();
+  });
+
+  it("data final no futuro volta ao padrão com o motivo", () => {
+    const { range, error } = resolvePeriodFromParams({ periodo: "personalizado", de: "2026-03-01", ate: "2026-03-20" }, NOW);
+    expect(range.key).toBe("30d");
+    expect(error).toBe("A data final não pode estar no futuro. Exibindo: últimos 30 dias.");
   });
 });

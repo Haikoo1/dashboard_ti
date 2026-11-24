@@ -64,6 +64,12 @@ export async function hasTicketsBefore(db: Db, instant: Date): Promise<boolean> 
   return rows[0]?.existe ?? false;
 }
 
+/** Existe pelo menos um PR registrado? (decide entre o Dashboard e o estado vazio) */
+export async function hasAnyTicket(db: Db): Promise<boolean> {
+  const rows = await db.$queryRaw<{ existe: boolean }[]>`SELECT EXISTS (SELECT 1 FROM prs) AS existe`;
+  return rows[0]?.existe ?? false;
+}
+
 /** O momento "atual" de um período é o seu fim (nunca depois de agora). */
 export function asOf(window: { end: Date }, now: Date): Date {
   return window.end < now ? window.end : now;
