@@ -1,5 +1,12 @@
-// Definição do banco de dados do Sistema de Gestão de TI.
-// As tabelas (modelos) serão adicionadas na Parte 2.
+// Estrutura do banco de dados do Sistema de Gestão de TI.
+//
+// Convenções:
+// - Nomes no código (modelos e campos) em inglês; nomes no banco (tabelas e
+//   colunas) em português, via @@map / @map.
+// - Todas as datas são "timestamptz" (com fuso), gravadas em UTC.
+// - Nenhuma exclusão em cascata: PRs, usuários e histórico não devem sumir.
+//   Registros fora de uso são desativados (campo "active").
+// - Regras que o Prisma não expressa (CHECKs) estão na migração SQL.
 
 generator client {
   provider = "prisma-client"
@@ -8,4 +15,214 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enumerações (valores fixos, porque as regras do sistema dependem deles)
+// ---------------------------------------------------------------------------
+
+/// Situação de um PR. "Atrasado" NÃO é status: é calculado (prazo vencido e PR não encerrado).
+enum TicketStatus {
+  ABERTO // registrado, ainda sem atendimento
+  EM_ANDAMENTO // técnico trabalhando
+  PENDENTE // aguardando solicitante ou terceiro
+  CONCLUIDO // resolvido
+  CANCELADO // encerrado sem resolução (inválido, duplicado, desistência)
+
+  @@map("status_pr")
+}
+
+enum UserRole {
+  ADMIN
+  TECNICO
+  SOLICITANTE
+
+  @@map("papel_usuario")
+}
+
+/// Tipos de evento do histórico de um PR.
+/// "PR concluído" é um STATUS_ALTERADO para CONCLUIDO (sem tipo duplicado).
+enum TicketEventType {
+  CRIADO
+  ATRIBUIDO
+  PRIORIDADE_ALTERADA
+  STATUS_ALTERADO
+  COMENTARIO
+
+  @@map("tipo_evento_pr")
+}
+
+// ---------------------------------------------------------------------------
+// Cadastros
+// ---------------------------------------------------------------------------
+
+model Sector {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique @map("nome") @db.VarChar(100)
+  active    Boolean  @default(true) @map("ativo")
+  createdAt DateTime @default(now()) @map("criado_em") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("atualizado_em") @db.Timestamptz(3)
+
+  users   User[]
+  tickets Ticket[]
+
+  @@map("setores")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String   @map("nome") @db.VarChar(150)
+  /// Sempre gravado em minúsculas (unicidade sem diferença de maiúsculas).
+  email     String   @unique @db.VarChar(255)
+  role      UserRole @map("papel")
+  sectorId  Int?     @map("setor_id")
+  active    Boolean  @default(true) @map("ativo")
+  createdAt DateTime @default(now()) @map("criado_em") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("atualizado_em") @db.Timestamptz(3)
+
+  sector             Sector?         @relation(fields: [sectorId], references: [id], onDelete: Restrict)
+  requestedTickets   Ticket[]        @relation("TicketRequester")
+  assignedTickets    Ticket[]        @relation("TicketAssignee")
+  comments           TicketComment[]
+  events             TicketEvent[]   @relation("EventActor")
+  eventsFromAssignee TicketEvent[]   @relation("EventFromAssignee")
+  eventsToAssignee   TicketEvent[]   @relation("EventToAssignee")
+
+  @@index([sectorId])
+  @@index([role, active])
+  @@map("usuarios")
+}
+
+/// Prioridade e seus prazos (SLA), em minutos corridos.
+model Priority {
+  id                   Int      @id @default(autoincrement())
+  name                 String   @unique @map("nome") @db.VarChar(50)
+  /// 1 = mais urgente. Usado para ordenar.
+  level                Int      @unique @map("nivel")
+  /// Cor de identificação visual (#RRGGBB).
+  color                String   @map("cor") @db.VarChar(7)
+  responseSlaMinutes   Int      @map("prazo_resposta_min")
+  resolutionSlaMinutes Int      @map("prazo_resolucao_min")
+  active               Boolean  @default(true) @map("ativo")
+  createdAt            DateTime @default(now()) @map("criado_em") @db.Timestamptz(3)
+  updatedAt            DateTime @updatedAt @map("atualizado_em") @db.Timestamptz(3)
+
+  tickets            Ticket[]
+  eventsFromPriority TicketEvent[] @relation("EventFromPriority")
+  eventsToPriority   TicketEvent[] @relation("EventToPriority")
+
+  @@map("prioridades")
+}
+
+model Category {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique @map("nome") @db.VarChar(100)
+  active    Boolean  @default(true) @map("ativo")
+  createdAt DateTime @default(now()) @map("criado_em") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("atualizado_em") @db.Timestamptz(3)
+
+  tickets Ticket[]
+
+  @@map("categorias")
+}
+
+// ---------------------------------------------------------------------------
+// PRs (Pedidos de Requisição / Chamados)
+// ---------------------------------------------------------------------------
+
+model Ticket {
+  id          Int          @id @default(autoincrement())
+  /// Identificador exibido ao usuário, ex.: PR-2026-0001.
+  number      String       @unique @map("numero") @db.VarChar(20)
+  title       String       @map("titulo") @db.VarChar(200)
+  description String       @map("descricao") @db.Text
+  status      TicketStatus @default(ABERTO)
+  priorityId  Int          @map("prioridade_id")
+  categoryId  Int          @map("categoria_id")
+  requesterId Int          @map("solicitante_id")
+  assigneeId  Int?         @map("responsavel_id")
+  /// Setor do solicitante NO MOMENTO da abertura (fato histórico).
+  sectorId    Int          @map("setor_id")
+
+  openedAt        DateTime  @default(now()) @map("aberto_em") @db.Timestamptz(3)
+  /// Primeira ação de um técnico (atribuição, comentário ou mudança de status).
+  /// Derivado do histórico; gravado uma única vez, pelo sistema, para consultas rápidas.
+  firstResponseAt DateTime? @map("primeira_resposta_em") @db.Timestamptz(3)
+  /// Prazo de resolução previsto.
+  dueAt           DateTime  @map("prazo_em") @db.Timestamptz(3)
+  /// Preenchido quando o status é CONCLUIDO ou CANCELADO; vazio caso contrário.
+  closedAt        DateTime? @map("encerrado_em") @db.Timestamptz(3)
+  updatedAt       DateTime  @updatedAt @map("atualizado_em") @db.Timestamptz(3)
+
+  priority  Priority        @relation(fields: [priorityId], references: [id], onDelete: Restrict)
+  category  Category        @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  requester User            @relation("TicketRequester", fields: [requesterId], references: [id], onDelete: Restrict)
+  assignee  User?           @relation("TicketAssignee", fields: [assigneeId], references: [id], onDelete: Restrict)
+  sector    Sector          @relation(fields: [sectorId], references: [id], onDelete: Restrict)
+  comments  TicketComment[]
+  events    TicketEvent[]
+
+  @@index([status])
+  @@index([openedAt])
+  @@index([closedAt])
+  @@index([dueAt])
+  @@index([assigneeId])
+  @@index([requesterId])
+  @@index([sectorId])
+  @@index([categoryId])
+  @@index([priorityId])
+  @@map("prs")
+}
+
+model TicketComment {
+  id        Int      @id @default(autoincrement())
+  ticketId  Int      @map("pr_id")
+  authorId  Int      @map("autor_id")
+  body      String   @map("texto") @db.Text
+  createdAt DateTime @default(now()) @map("criado_em") @db.Timestamptz(3)
+
+  ticket Ticket       @relation(fields: [ticketId], references: [id], onDelete: Restrict)
+  author User         @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  event  TicketEvent?
+
+  @@index([ticketId, createdAt])
+  @@index([authorId])
+  @@map("pr_comentarios")
+}
+
+/// Histórico de alterações de um PR. Alimenta o histórico e as "atividades recentes".
+/// Os valores "de/para" ficam em colunas tipadas com chave estrangeira,
+/// garantindo integridade (ex.: não é possível registrar um responsável inexistente).
+model TicketEvent {
+  id        Int             @id @default(autoincrement())
+  ticketId  Int             @map("pr_id")
+  actorId   Int             @map("usuario_id")
+  type      TicketEventType @map("tipo")
+  createdAt DateTime        @default(now()) @map("criado_em") @db.Timestamptz(3)
+
+  // STATUS_ALTERADO (e CRIADO, com toStatus = ABERTO)
+  fromStatus     TicketStatus? @map("status_anterior")
+  toStatus       TicketStatus? @map("status_novo")
+  // PRIORIDADE_ALTERADA
+  fromPriorityId Int?          @map("prioridade_anterior_id")
+  toPriorityId   Int?          @map("prioridade_nova_id")
+  // ATRIBUIDO (toAssigneeId vazio = responsável removido)
+  fromAssigneeId Int?          @map("responsavel_anterior_id")
+  toAssigneeId   Int?          @map("responsavel_novo_id")
+  // COMENTARIO
+  commentId      Int?          @unique @map("comentario_id")
+
+  ticket       Ticket         @relation(fields: [ticketId], references: [id], onDelete: Restrict)
+  actor        User           @relation("EventActor", fields: [actorId], references: [id], onDelete: Restrict)
+  fromPriority Priority?      @relation("EventFromPriority", fields: [fromPriorityId], references: [id], onDelete: Restrict)
+  toPriority   Priority?      @relation("EventToPriority", fields: [toPriorityId], references: [id], onDelete: Restrict)
+  fromAssignee User?          @relation("EventFromAssignee", fields: [fromAssigneeId], references: [id], onDelete: Restrict)
+  toAssignee   User?          @relation("EventToAssignee", fields: [toAssigneeId], references: [id], onDelete: Restrict)
+  comment      TicketComment? @relation(fields: [commentId], references: [id], onDelete: Restrict)
+
+  @@index([createdAt(sort: Desc)])
+  @@index([ticketId, createdAt])
+  @@index([type, createdAt])
+  @@index([actorId])
+  @@map("pr_eventos")
 }

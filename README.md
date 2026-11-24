@@ -29,7 +29,15 @@ cp .env.example .env
 #    Na primeira vez, cria a pasta .pgdata/ e os bancos gestao_ti e gestao_ti_demo
 npm run db:up
 
-# 4. Iniciar a aplicação em modo de desenvolvimento
+# 4. Criar as tabelas e a configuração inicial no banco real
+npm run db:migrate
+npm run db:seed
+
+# 5. (Opcional) Montar o banco de demonstração com dados fictícios
+#    Para usá-lo, defina APP_DATA_MODE=demo no .env
+npm run db:demo
+
+# 6. Iniciar a aplicação em modo de desenvolvimento
 npm run dev
 ```
 
@@ -45,7 +53,9 @@ Acesse http://localhost:3000.
 | `npm run typecheck` | Verifica erros de tipagem |
 | `npm run db:up` / `db:down` | Liga / desliga o banco de dados |
 | `npm run db:status` | Mostra se o banco está ligado |
-| `npm run db:migrate` | Aplica alterações da estrutura do banco |
+| `npm run db:migrate` | Aplica alterações da estrutura do banco (real) |
+| `npm run db:seed` | Cadastra a configuração inicial (prioridades com SLA e categorias) no banco real |
+| `npm run db:demo` | Recria o banco de **demonstração** com dados fictícios |
 | `npm run db:studio` | Abre um visualizador do banco no navegador |
 
 ## Bancos de dados

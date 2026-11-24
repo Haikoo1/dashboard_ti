@@ -11,10 +11,12 @@
     "db:up": "node scripts/db.mjs up",
     "db:down": "node scripts/db.mjs down",
     "db:generate": "prisma generate",
-    "db:migrate": "prisma migrate dev",
+    "db:migrate": "prisma migrate dev && prisma generate",
     "db:studio": "prisma studio",
     "postinstall": "prisma generate",
-    "db:status": "node scripts/db.mjs status"
+    "db:status": "node scripts/db.mjs status",
+    "db:seed": "prisma db seed",
+    "db:demo": "node scripts/demo-db.mjs"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.10.1",
@@ -33,10 +35,12 @@
     "eslint-config-next": "16.4.6",
     "prisma": "7.10.1",
     "tailwindcss": "4.3.3",
+    "tsx": "4.23.15",
     "typescript": "^5"
   },
   "allowScripts": {
     "prisma@7.10.1": true,
-    "@prisma/engines@7.10.1": true
+    "@prisma/engines@7.10.1": true,
+    "esbuild": false
   }
 }
