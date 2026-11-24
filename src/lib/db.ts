@@ -8,16 +8,9 @@
 // instância em globalThis evita abrir uma nova conexão a cada recarga.
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@/generated/prisma/client";
+import { getDataMode, type DataMode } from "@/lib/data-mode";
 
-export type DataMode = "real" | "demo";
-
-export function getDataMode(): DataMode {
-  const mode = process.env.APP_DATA_MODE ?? "real";
-  if (mode !== "real" && mode !== "demo") {
-    throw new Error(`APP_DATA_MODE inválido: "${mode}". Use "real" ou "demo".`);
-  }
-  return mode;
-}
+export { getDataMode, type DataMode };
 
 function getConnectionString(mode: DataMode): string {
   const variable = mode === "demo" ? "DEMO_DATABASE_URL" : "DATABASE_URL";
