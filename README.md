@@ -51,6 +51,7 @@ Acesse http://localhost:3000.
 | `npm run build` | Gera a versão de produção (verifica erros) |
 | `npm run lint` | Verifica padrões de código |
 | `npm run typecheck` | Verifica erros de tipagem |
+| `npm test` | Roda os testes automáticos (usa o banco `gestao_ti_test`; o banco precisa estar ligado) |
 | `npm run db:up` / `db:down` | Liga / desliga o banco de dados |
 | `npm run db:status` | Mostra se o banco está ligado |
 | `npm run db:migrate` | Aplica alterações da estrutura do banco (real) |
@@ -64,6 +65,7 @@ Acesse http://localhost:3000.
 |---|---|
 | `gestao_ti` | Dados **reais** |
 | `gestao_ti_demo` | Dados **fictícios** de demonstração, isolados do real |
+| `gestao_ti_test` | Usado só pelos testes automáticos (apagado a cada execução) |
 
 > O banco **não liga sozinho** com o Windows. Rode `npm run db:up` antes de trabalhar.
 > Os dados ficam em `.pgdata/` (fora do Git). Apagar essa pasta apaga todos os dados locais.

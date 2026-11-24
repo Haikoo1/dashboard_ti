@@ -23,8 +23,13 @@ const LOG_FILE = path.join(DATA_DIR, "server.log");
 const USER = requireEnv("POSTGRES_USER");
 const PASSWORD = requireEnv("POSTGRES_PASSWORD");
 const PORT = process.env.POSTGRES_PORT ?? "5433";
-// Bancos criados automaticamente: o real e o de demonstração (isolados).
-const DATABASES = [requireEnv("POSTGRES_DB"), `${requireEnv("POSTGRES_DB")}_demo`];
+// Bancos criados automaticamente, isolados entre si:
+//   real, demonstração (dados fictícios) e testes automáticos (apagado a cada execução).
+const DATABASES = [
+  requireEnv("POSTGRES_DB"),
+  `${requireEnv("POSTGRES_DB")}_demo`,
+  `${requireEnv("POSTGRES_DB")}_test`,
+];
 
 function requireEnv(name) {
   const value = process.env[name];

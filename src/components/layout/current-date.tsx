@@ -1,6 +1,5 @@
 import { connection } from "next/server";
-
-export const APP_TIME_ZONE = "America/Sao_Paulo";
+import { APP_TIME_ZONE } from "@/lib/time-zone";
 
 /**
  * Data de hoje no horário de Brasília, calculada a cada acesso.

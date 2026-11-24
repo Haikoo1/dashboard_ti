@@ -16,7 +16,9 @@
     "postinstall": "prisma generate",
     "db:status": "node scripts/db.mjs status",
     "db:seed": "prisma db seed",
-    "db:demo": "node scripts/demo-db.mjs"
+    "db:demo": "node scripts/demo-db.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.10.1",
@@ -24,7 +26,8 @@
     "lucide-react": "1.79.0",
     "next": "16.4.6",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@tailwindcss/turbopack": "4.3.3",
@@ -37,7 +40,8 @@
     "prisma": "7.10.1",
     "tailwindcss": "4.3.3",
     "tsx": "4.23.15",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "4.1.12"
   },
   "allowScripts": {
     "prisma@7.10.1": true,
