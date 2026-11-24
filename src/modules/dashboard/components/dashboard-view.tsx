@@ -9,18 +9,14 @@ import { db, getDataMode } from "@/lib/db";
 import { formatWindow, toIsoDate, windowDays } from "../domain/format";
 import { DEFAULT_PERIOD, resolveGranularity, resolvePeriodFromParams, type DashboardRange } from "../domain/period";
 import { hasAnyTicket } from "../queries/shared";
+import { AssigneesSection, AssigneesSectionSkeleton } from "./assignees-section";
+import { CategoriesSection, CategoriesSectionSkeleton } from "./categories-section";
 import { DashboardEmpty } from "./dashboard-empty";
 import { IndicatorsSection, IndicatorsSectionSkeleton } from "./indicators-section";
+import { PerformanceSection, PerformanceSectionSkeleton } from "./performance-section";
 import { PeriodFilter } from "./period-filter";
+import { SectorsSection, SectorsSectionSkeleton } from "./sectors-section";
 import { VolumeSection, VolumeSectionSkeleton } from "./volume-section";
-
-// Áreas que ainda serão implementadas, com a parte prevista.
-const UPCOMING = [
-  { title: "Alertas de atraso", part: "Parte 8", span: "" },
-  { title: "Desempenho dos responsáveis", part: "Parte 7", span: "md:col-span-2" },
-  { title: "PRs por setor", part: "Parte 7", span: "" },
-  { title: "Atividades recentes", part: "Parte 8", span: "md:col-span-3" },
-] as const;
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -63,21 +59,32 @@ export async function DashboardView({ searchParams }: { searchParams: SearchPara
         <IndicatorsSection range={range} />
       </Suspense>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+      <Suspense fallback={<PerformanceSectionSkeleton />}>
+        <PerformanceSection range={range} />
+      </Suspense>
+
+      {/* Celular: 1 coluna · tablet: 2 · telas largas: 3 */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         <div className="md:col-span-2">
           <Suspense fallback={<VolumeSectionSkeleton />}>
             <VolumeSection range={range} granularity={granularity} periodParams={periodParams(range)} />
           </Suspense>
         </div>
-        {UPCOMING.map((section) => (
-          <section
-            key={section.title}
-            className={`flex min-h-36 flex-col justify-between rounded-xl border border-dashed border-border-strong bg-surface/40 p-5 ${section.span}`}
-          >
-            <h3 className="text-sm font-semibold text-muted">{section.title}</h3>
-            <p className="font-mono text-[11px] tracking-wide text-faint uppercase">Previsto: {section.part}</p>
-          </section>
-        ))}
+        <Upcoming title="Alertas de atraso" part="Parte 8" className="md:col-span-2 xl:col-span-1" />
+
+        <div className="md:col-span-2 xl:col-span-3">
+          <Suspense fallback={<AssigneesSectionSkeleton />}>
+            <AssigneesSection range={range} />
+          </Suspense>
+        </div>
+
+        <Suspense fallback={<SectorsSectionSkeleton />}>
+          <SectorsSection range={range} />
+        </Suspense>
+        <Suspense fallback={<CategoriesSectionSkeleton />}>
+          <CategoriesSection range={range} />
+        </Suspense>
+        <Upcoming title="Atividades recentes" part="Parte 8" className="md:col-span-2 xl:col-span-1" />
       </div>
     </>
   );
@@ -89,6 +96,18 @@ function periodParams(range: DashboardRange): Record<string, string> {
   if (range.key !== "personalizado") return { periodo: range.key };
   const { first, last } = windowDays(range.current);
   return { periodo: range.key, de: toIsoDate(first), ate: toIsoDate(last) };
+}
+
+/** Área ainda não implementada, com a parte prevista. */
+function Upcoming({ title, part, className = "" }: { title: string; part: string; className?: string }) {
+  return (
+    <section
+      className={`flex min-h-36 flex-col justify-between rounded-xl border border-dashed border-border-strong bg-surface/40 p-5 ${className}`}
+    >
+      <h3 className="text-sm font-semibold text-muted">{title}</h3>
+      <p className="font-mono text-[11px] tracking-wide text-faint uppercase">Previsto: {part}</p>
+    </section>
+  );
 }
 
 function Heading({ subtitle }: { subtitle: string }) {

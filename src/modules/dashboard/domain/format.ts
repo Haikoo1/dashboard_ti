@@ -20,6 +20,23 @@ export function formatSignedPercent(value: number): string {
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
+/** Percentual sem sinal: "87%", "8,5%". */
+export function formatPercent(value: number): string {
+  const digits = value < 10 && value !== Math.round(value) ? 1 : 0;
+  return `${new Intl.NumberFormat("pt-BR", { maximumFractionDigits: digits }).format(value)}%`;
+}
+
+/** Duração legível: "< 1 min", "45 min", "2h 05min", "3d 4h". */
+export function formatDuration(minutes: number): string {
+  const total = Math.round(minutes);
+  if (total < 1) return "< 1 min";
+  if (total < 60) return `${total} min`;
+  if (total < 24 * 60) return `${Math.floor(total / 60)}h ${pad(total % 60)}min`;
+  const days = Math.floor(total / (24 * 60));
+  const hours = Math.floor((total % (24 * 60)) / 60);
+  return hours === 0 ? `${days}d` : `${days}d ${hours}h`;
+}
+
 /** Data do calendário (Brasília) no formato AAAA-MM-DD, usado no endereço da página. */
 export function toIsoDate(instant: Date): string {
   const { year, month, day } = zonedDateParts(instant);
@@ -62,17 +79,24 @@ export type ComparisonView = {
   detail: string;
 };
 
-export function describeComparison(c: Comparison, meaning: TrendMeaning): ComparisonView {
+/**
+ * @param format como escrever o valor anterior (número, duração...).
+ */
+export function describeComparison(
+  c: Comparison,
+  meaning: TrendMeaning,
+  format: (value: number) => string = formatNumber,
+): ComparisonView {
   if (c.previous === null || c.delta === null) {
     return { direction: "none", tone: "neutral", change: "", detail: "Sem base de comparação" };
   }
-  const before = `antes: ${formatNumber(c.previous)}`;
+  const before = `antes: ${format(c.previous)}`;
   if (c.delta === 0) return { direction: "flat", tone: "neutral", change: "0%", detail: before };
 
   const direction = c.delta > 0 ? "up" : "down";
   // Anterior igual a zero: a variação percentual é indefinida; mostra a diferença absoluta.
   const change =
-    c.deltaPercent === null ? `${c.delta > 0 ? "+" : "−"}${formatNumber(Math.abs(c.delta))}` : formatSignedPercent(c.deltaPercent);
+    c.deltaPercent === null ? `${c.delta > 0 ? "+" : "−"}${format(Math.abs(c.delta))}` : formatSignedPercent(c.deltaPercent);
   const tone =
     meaning === "neutral"
       ? "neutral"

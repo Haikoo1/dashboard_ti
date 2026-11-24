@@ -6,7 +6,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
 import type { Comparison } from "../domain/comparison";
-import { describeComparison, formatNumber, type TrendMeaning } from "../domain/format";
+import { describeComparison, formatNumber, type ComparisonView, type TrendMeaning } from "../domain/format";
 
 type Props = {
   label: string;
@@ -28,7 +28,6 @@ const TONE_CLASS = {
 
 export function IndicatorCard({ label, icon: Icon, value, meaning, scope, alert = false, href }: Props) {
   const view = describeComparison(value, meaning);
-  const Arrow = view.direction === "up" ? ArrowUpRight : view.direction === "down" ? ArrowDownRight : Minus;
 
   const body: ReactNode = (
     <>
@@ -51,19 +50,7 @@ export function IndicatorCard({ label, icon: Icon, value, meaning, scope, alert 
         {formatNumber(value.current)}
       </p>
 
-      <p className="mt-3 flex min-h-5 flex-wrap items-center gap-x-1.5 border-t border-border pt-3 text-xs">
-        {view.direction === "none" ? (
-          <span className="text-faint">{view.detail}</span>
-        ) : (
-          <>
-            <span className={cn("inline-flex items-center gap-0.5 font-semibold", TONE_CLASS[view.tone])}>
-              <Arrow className="size-3.5" strokeWidth={2.2} aria-hidden />
-              {view.change}
-            </span>
-            <span className="text-faint">vs. anterior ({view.detail})</span>
-          </>
-        )}
-      </p>
+      <ComparisonLine view={view} className="mt-3 border-t border-border pt-3" />
     </>
   );
 
@@ -80,6 +67,26 @@ export function IndicatorCard({ label, icon: Icon, value, meaning, scope, alert 
     </Link>
   ) : (
     <article className={className}>{body}</article>
+  );
+}
+
+/** Linha "↗ +12% vs. anterior (antes: 34)", ou o motivo de não haver comparação. */
+export function ComparisonLine({ view, className }: { view: ComparisonView; className?: string }) {
+  const Arrow = view.direction === "up" ? ArrowUpRight : view.direction === "down" ? ArrowDownRight : Minus;
+  return (
+    <p className={cn("flex min-h-5 flex-wrap items-center gap-x-1.5 text-xs", className)}>
+      {view.direction === "none" ? (
+        <span className="text-faint">{view.detail}</span>
+      ) : (
+        <>
+          <span className={cn("inline-flex items-center gap-0.5 font-semibold", TONE_CLASS[view.tone])}>
+            <Arrow className="size-3.5" strokeWidth={2.2} aria-hidden />
+            {view.change}
+          </span>
+          <span className="text-faint">vs. anterior ({view.detail})</span>
+        </>
+      )}
+    </p>
   );
 }
 

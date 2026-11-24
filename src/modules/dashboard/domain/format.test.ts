@@ -1,6 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { compare } from "./comparison";
-import { bucketEnd, bucketTick, bucketTitle, describeComparison, formatSignedPercent, formatWindow, toIsoDate } from "./format";
+import {
+  bucketEnd,
+  bucketTick,
+  bucketTitle,
+  describeComparison,
+  formatDuration,
+  formatPercent,
+  formatSignedPercent,
+  formatWindow,
+  toIsoDate,
+} from "./format";
 
 describe("formatSignedPercent", () => {
   it("usa sinal e uma casa decimal abaixo de 10%", () => {
@@ -71,5 +81,30 @@ describe("rótulos do gráfico de volume", () => {
   it("mês parcial informa os dias", () => {
     expect(bucketTitle("2026-03-01", "mes", period)).toEqual({ title: "março de 2026 (05/03 a 18/03)", partial: true });
     expect(bucketTitle("2026-03-01", "mes", { first: "2026-01-01", last: "2026-12-31" }).title).toBe("março de 2026");
+  });
+});
+
+describe("durações e percentuais", () => {
+  it("formatDuration", () => {
+    expect(formatDuration(0.4)).toBe("< 1 min");
+    expect(formatDuration(45)).toBe("45 min");
+    expect(formatDuration(125)).toBe("2h 05min");
+    expect(formatDuration(26.25)).toBe("26 min");
+    expect(formatDuration(24 * 60)).toBe("1d");
+    expect(formatDuration(3 * 24 * 60 + 4 * 60 + 10)).toBe("3d 4h");
+  });
+
+  it("formatPercent", () => {
+    expect(formatPercent(87.4)).toBe("87%");
+    expect(formatPercent(8.46)).toBe("8,5%");
+    expect(formatPercent(100)).toBe("100%");
+  });
+
+  it("comparação de tempos usa o formato informado", () => {
+    expect(describeComparison(compare(90, 120), "lower-is-better", formatDuration)).toMatchObject({
+      change: "−25%",
+      tone: "good",
+      detail: "antes: 2h 00min",
+    });
   });
 });
