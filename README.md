@@ -8,6 +8,7 @@ Sistema de gerenciamento do departamento de TI. Módulo em desenvolvimento: **Da
 |---|---|
 | Aplicação (interface + servidor) | Next.js 16 · React 19 · TypeScript |
 | Estilo | Tailwind CSS 4 |
+| Gráficos | Recharts 3 |
 | Banco de dados | PostgreSQL 18 (instância própria do projeto) |
 | Acesso ao banco | Prisma 7 |
 

@@ -1,7 +1,7 @@
 // Formatação dos números e datas exibidos no Dashboard (pt-BR, horário de Brasília).
 import { zonedDateParts } from "@/lib/time-zone";
 import type { Comparison } from "./comparison";
-import type { TimeWindow } from "./period";
+import type { Granularity, TimeWindow } from "./period";
 
 const integerFormat = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
 
@@ -80,4 +80,67 @@ export function describeComparison(c: Comparison, meaning: TrendMeaning): Compar
         ? "good"
         : "bad";
   return { direction, tone, change, detail: before };
+}
+
+// ---------------------------------------------------------------------------
+// Rótulos dos intervalos do gráfico de volume
+// ---------------------------------------------------------------------------
+// Os intervalos chegam como datas do calendário ("AAAA-MM-DD", já no horário de
+// Brasília). As contas abaixo usam UTC só como calendário neutro, sem fuso.
+
+const MONTHS_SHORT = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+const MONTHS_LONG = [
+  "janeiro", "fevereiro", "março", "abril", "maio", "junho",
+  "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
+];
+const WEEKDAYS = ["dom.", "seg.", "ter.", "qua.", "qui.", "sex.", "sáb."];
+
+function calendar(iso: string): Date {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d));
+}
+const isoOf = (d: Date) => d.toISOString().slice(0, 10);
+const dayMonth = (d: Date) => `${pad(d.getUTCDate())}/${pad(d.getUTCMonth() + 1)}`;
+
+/** Último dia (AAAA-MM-DD) do intervalo que começa em "bucket". */
+export function bucketEnd(bucket: string, granularity: Granularity): string {
+  const d = calendar(bucket);
+  if (granularity === "semana") d.setUTCDate(d.getUTCDate() + 6);
+  if (granularity === "mes") d.setUTCMonth(d.getUTCMonth() + 1, 0);
+  return isoOf(d);
+}
+
+/** Rótulo curto do eixo: "24/11" (dia e semana) ou "nov/26" (mês). */
+export function bucketTick(bucket: string, granularity: Granularity): string {
+  const d = calendar(bucket);
+  if (granularity === "mes") return `${MONTHS_SHORT[d.getUTCMonth()]}/${String(d.getUTCFullYear()).slice(2)}`;
+  return dayMonth(d);
+}
+
+/**
+ * Rótulo completo (dica e tabela). Intervalos cortados pelo período (ex.: semana que
+ * começou antes dele) informam os dias realmente considerados e ficam marcados como parciais.
+ */
+export function bucketTitle(
+  bucket: string,
+  granularity: Granularity,
+  period: { first: string; last: string },
+): { title: string; partial: boolean } {
+  const d = calendar(bucket);
+  if (granularity === "dia") {
+    return { title: `${WEEKDAYS[d.getUTCDay()]} ${dayMonth(d)}/${d.getUTCFullYear()}`, partial: false };
+  }
+  const start = bucket < period.first ? period.first : bucket;
+  const endIso = bucketEnd(bucket, granularity);
+  const end = endIso > period.last ? period.last : endIso;
+  const partial = start !== bucket || end !== endIso;
+  if (granularity === "mes") {
+    const name = `${MONTHS_LONG[d.getUTCMonth()]} de ${d.getUTCFullYear()}`;
+    return {
+      title: partial ? `${name} (${dayMonth(calendar(start))} a ${dayMonth(calendar(end))})` : name,
+      partial,
+    };
+  }
+  const e = calendar(end);
+  return { title: `Semana de ${dayMonth(calendar(start))} a ${dayMonth(e)}/${e.getUTCFullYear()}`, partial };
 }

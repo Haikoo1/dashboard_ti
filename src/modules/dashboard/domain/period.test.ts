@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PeriodError, parsePeriodParams, resolvePeriod, resolvePeriodFromParams } from "./period";
+import { PeriodError, allowedGranularities, parsePeriodParams, resolveGranularity, resolvePeriod, resolvePeriodFromParams, suggestGranularity } from "./period";
 
 // Quarta-feira, 18/03/2026, 12:00 em Brasília.
 const NOW = new Date("2026-03-18T15:00:00Z");
@@ -99,5 +99,21 @@ describe("resolvePeriodFromParams", () => {
     const { range, error } = resolvePeriodFromParams({ periodo: "personalizado", de: "2026-03-01", ate: "2026-03-20" }, NOW);
     expect(range.key).toBe("30d");
     expect(error).toBe("A data final não pode estar no futuro. Exibindo: últimos 30 dias.");
+  });
+});
+
+describe("agrupamento do gráfico", () => {
+  it("o sugerido é sempre permitido, de 1 a 731 dias", () => {
+    for (let days = 1; days <= 731; days++) {
+      expect(allowedGranularities(days)).toContain(suggestGranularity(days));
+    }
+  });
+
+  it("aceita o pedido quando permitido; senão usa o sugerido", () => {
+    expect(resolveGranularity("semana", 30)).toBe("semana");
+    expect(resolveGranularity("mes", 7)).toBe("dia");
+    expect(resolveGranularity("dia", 328)).toBe("mes");
+    expect(resolveGranularity("hora", 90)).toBe("semana");
+    expect(resolveGranularity(undefined, 90)).toBe("semana");
   });
 });

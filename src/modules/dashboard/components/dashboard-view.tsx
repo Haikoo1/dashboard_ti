@@ -1,21 +1,21 @@
 // Conteúdo do Dashboard, montado no servidor a cada acesso.
 //
 // Fluxo: lê o período do endereço → verifica se há PRs → mostra o cabeçalho com o
-// filtro na hora e carrega os indicadores em seguida (com esqueleto enquanto isso).
+// filtro na hora e carrega cada seção em seguida (com esqueleto enquanto isso).
 import { TriangleAlert } from "lucide-react";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { db, getDataMode } from "@/lib/db";
 import { formatWindow, toIsoDate, windowDays } from "../domain/format";
-import { resolvePeriodFromParams } from "../domain/period";
+import { DEFAULT_PERIOD, resolveGranularity, resolvePeriodFromParams, type DashboardRange } from "../domain/period";
 import { hasAnyTicket } from "../queries/shared";
 import { DashboardEmpty } from "./dashboard-empty";
 import { IndicatorsSection, IndicatorsSectionSkeleton } from "./indicators-section";
 import { PeriodFilter } from "./period-filter";
+import { VolumeSection, VolumeSectionSkeleton } from "./volume-section";
 
 // Áreas que ainda serão implementadas, com a parte prevista.
 const UPCOMING = [
-  { title: "Volume de PRs", part: "Parte 6", span: "md:col-span-2" },
   { title: "Alertas de atraso", part: "Parte 8", span: "" },
   { title: "Desempenho dos responsáveis", part: "Parte 7", span: "md:col-span-2" },
   { title: "PRs por setor", part: "Parte 7", span: "" },
@@ -39,6 +39,7 @@ export async function DashboardView({ searchParams }: { searchParams: SearchPara
 
   const { range, error } = resolvePeriodFromParams(searchParams, now);
   const { first, last } = windowDays(range.current);
+  const granularity = resolveGranularity(searchParams.agrupar, range.days);
   const subtitle = range.key === "personalizado" ? range.label : `${range.label} · ${formatWindow(range.current)}`;
 
   return (
@@ -63,6 +64,11 @@ export async function DashboardView({ searchParams }: { searchParams: SearchPara
       </Suspense>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="md:col-span-2">
+          <Suspense fallback={<VolumeSectionSkeleton />}>
+            <VolumeSection range={range} granularity={granularity} periodParams={periodParams(range)} />
+          </Suspense>
+        </div>
         {UPCOMING.map((section) => (
           <section
             key={section.title}
@@ -75,6 +81,14 @@ export async function DashboardView({ searchParams }: { searchParams: SearchPara
       </div>
     </>
   );
+}
+
+/** Parâmetros do endereço que descrevem o período em exibição (já validado). */
+function periodParams(range: DashboardRange): Record<string, string> {
+  if (range.key === DEFAULT_PERIOD) return {};
+  if (range.key !== "personalizado") return { periodo: range.key };
+  const { first, last } = windowDays(range.current);
+  return { periodo: range.key, de: toIsoDate(first), ate: toIsoDate(last) };
 }
 
 function Heading({ subtitle }: { subtitle: string }) {

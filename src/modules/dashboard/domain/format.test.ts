@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { compare } from "./comparison";
-import { describeComparison, formatSignedPercent, formatWindow, toIsoDate } from "./format";
+import { bucketEnd, bucketTick, bucketTitle, describeComparison, formatSignedPercent, formatWindow, toIsoDate } from "./format";
 
 describe("formatSignedPercent", () => {
   it("usa sinal e uma casa decimal abaixo de 10%", () => {
@@ -42,5 +42,34 @@ describe("describeComparison", () => {
 
   it("sem variação", () => {
     expect(describeComparison(compare(4, 4), "higher-is-better")).toMatchObject({ direction: "flat", tone: "neutral" });
+  });
+});
+
+describe("rótulos do gráfico de volume", () => {
+  const period = { first: "2026-03-05", last: "2026-03-18" };
+
+  it("fim de semana e de mês (inclui fevereiro)", () => {
+    expect(bucketEnd("2026-03-02", "semana")).toBe("2026-03-08");
+    expect(bucketEnd("2026-02-01", "mes")).toBe("2026-02-28");
+  });
+
+  it("rótulos curtos", () => {
+    expect(bucketTick("2026-03-02", "semana")).toBe("02/03");
+    expect(bucketTick("2026-11-01", "mes")).toBe("nov/26");
+  });
+
+  it("dia com dia da semana", () => {
+    expect(bucketTitle("2026-03-18", "dia", period)).toEqual({ title: "qua. 18/03/2026", partial: false });
+  });
+
+  it("semana cortada pelo início e pelo fim do período", () => {
+    expect(bucketTitle("2026-03-02", "semana", period)).toEqual({ title: "Semana de 05/03 a 08/03/2026", partial: true });
+    expect(bucketTitle("2026-03-09", "semana", period)).toEqual({ title: "Semana de 09/03 a 15/03/2026", partial: false });
+    expect(bucketTitle("2026-03-16", "semana", period)).toEqual({ title: "Semana de 16/03 a 18/03/2026", partial: true });
+  });
+
+  it("mês parcial informa os dias", () => {
+    expect(bucketTitle("2026-03-01", "mes", period)).toEqual({ title: "março de 2026 (05/03 a 18/03)", partial: true });
+    expect(bucketTitle("2026-03-01", "mes", { first: "2026-01-01", last: "2026-12-31" }).title).toBe("março de 2026");
   });
 });

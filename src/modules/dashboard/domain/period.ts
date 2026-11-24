@@ -149,6 +149,28 @@ export function resolvePeriodFromParams(params: SearchParams, now: Date): { rang
   }
 }
 
+export const GRANULARITY_LABEL: Record<Granularity, string> = { dia: "Dia", semana: "Semana", mes: "Mês" };
+
+/**
+ * Agrupamentos que fazem sentido para o tamanho do período: evita gráficos com
+ * centenas de barras (dia em um ano) ou com uma barra só (mês em 7 dias).
+ */
+export function allowedGranularities(days: number): Granularity[] {
+  const allowed: Granularity[] = [];
+  if (days <= 92) allowed.push("dia");
+  if (days >= 14 && days <= 371) allowed.push("semana");
+  if (days >= 60) allowed.push("mes");
+  return allowed;
+}
+
+/** Agrupamento pedido no endereço (?agrupar=semana), se for permitido; senão, o sugerido. */
+export function resolveGranularity(param: string | string[] | undefined, days: number): Granularity {
+  const value = Array.isArray(param) ? param[0] : param;
+  const allowed = allowedGranularities(days);
+  const requested = GRANULARITIES.find((g) => g === value);
+  return requested && allowed.includes(requested) ? requested : suggestGranularity(days);
+}
+
 export function suggestGranularity(days: number): Granularity {
   if (days <= 31) return "dia";
   if (days <= 120) return "semana";
