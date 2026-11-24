@@ -1,0 +1,11 @@
+// Definição do banco de dados do Sistema de Gestão de TI.
+// As tabelas (modelos) serão adicionadas na Parte 2.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
