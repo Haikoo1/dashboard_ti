@@ -1,5 +1,5 @@
 // Formatação dos números e datas exibidos no Dashboard (pt-BR, horário de Brasília).
-import { zonedDateParts } from "@/lib/time-zone";
+import { APP_TIME_ZONE, zonedDateParts } from "@/lib/time-zone";
 import type { Comparison } from "./comparison";
 import type { Granularity, TimeWindow } from "./period";
 
@@ -47,6 +47,33 @@ export function toIsoDate(instant: Date): string {
 export function formatDate(instant: Date): string {
   const { year, month, day } = zonedDateParts(instant);
   return `${pad(day)}/${pad(month)}/${year}`;
+}
+
+const dateTimeFormat = new Intl.DateTimeFormat("pt-BR", {
+  timeZone: APP_TIME_ZONE,
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
+
+/** "24/11/2026 14:30" (horário de Brasília) */
+export function formatDateTime(instant: Date): string {
+  return dateTimeFormat.format(instant).replace(",", "");
+}
+
+/** Tempo decorrido em linguagem natural: "agora", "há 5 min", "há 3h", "há 2 dias", ou a data. */
+export function formatRelative(instant: Date, now: Date): string {
+  const minutes = Math.floor((now.getTime() - instant.getTime()) / 60_000);
+  if (minutes < 1) return "agora";
+  if (minutes < 60) return `há ${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `há ${hours}h`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return days === 1 ? "há 1 dia" : `há ${days} dias`;
+  return formatDate(instant);
 }
 
 /** Primeiro e último dia de calendário de uma janela [start, end). */

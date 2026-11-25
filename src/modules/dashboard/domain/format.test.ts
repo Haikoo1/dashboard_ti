@@ -5,8 +5,10 @@ import {
   bucketTick,
   bucketTitle,
   describeComparison,
+  formatDateTime,
   formatDuration,
   formatPercent,
+  formatRelative,
   formatSignedPercent,
   formatWindow,
   toIsoDate,
@@ -106,5 +108,23 @@ describe("durações e percentuais", () => {
       tone: "good",
       detail: "antes: 2h 00min",
     });
+  });
+});
+
+describe("data e hora", () => {
+  it("formatDateTime no horário de Brasília", () => {
+    expect(formatDateTime(new Date("2026-11-24T17:05:00Z"))).toBe("24/11/2026 14:05");
+    expect(formatDateTime(new Date("2026-11-25T02:30:00Z"))).toBe("24/11/2026 23:30");
+  });
+
+  it("formatRelative", () => {
+    const now = new Date("2026-11-24T15:00:00Z");
+    const ago = (min: number) => new Date(now.getTime() - min * 60_000);
+    expect(formatRelative(ago(0.5), now)).toBe("agora");
+    expect(formatRelative(ago(5), now)).toBe("há 5 min");
+    expect(formatRelative(ago(3 * 60 + 20), now)).toBe("há 3h");
+    expect(formatRelative(ago(26 * 60), now)).toBe("há 1 dia");
+    expect(formatRelative(ago(3 * 24 * 60), now)).toBe("há 3 dias");
+    expect(formatRelative(ago(10 * 24 * 60), now)).toBe("14/11/2026");
   });
 });

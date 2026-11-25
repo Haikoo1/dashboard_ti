@@ -9,6 +9,8 @@ import { db, getDataMode } from "@/lib/db";
 import { formatWindow, toIsoDate, windowDays } from "../domain/format";
 import { DEFAULT_PERIOD, resolveGranularity, resolvePeriodFromParams, type DashboardRange } from "../domain/period";
 import { hasAnyTicket } from "../queries/shared";
+import { ActivitySection, ActivitySectionSkeleton } from "./activity-section";
+import { AlertsSection, AlertsSectionSkeleton } from "./alerts-section";
 import { AssigneesSection, AssigneesSectionSkeleton } from "./assignees-section";
 import { CategoriesSection, CategoriesSectionSkeleton } from "./categories-section";
 import { DashboardEmpty } from "./dashboard-empty";
@@ -70,7 +72,12 @@ export async function DashboardView({ searchParams }: { searchParams: SearchPara
             <VolumeSection range={range} granularity={granularity} periodParams={periodParams(range)} />
           </Suspense>
         </div>
-        <Upcoming title="Alertas de atraso" part="Parte 8" className="md:col-span-2 xl:col-span-1" />
+        {/* Em telas largas, os alertas ocupam a altura do gráfico ao lado e rolam por dentro. */}
+        <div className="md:col-span-2 xl:relative xl:col-span-1">
+          <Suspense fallback={<AlertsSectionSkeleton className="xl:absolute xl:inset-0" />}>
+            <AlertsSection now={now} className="xl:absolute xl:inset-0" />
+          </Suspense>
+        </div>
 
         <div className="md:col-span-2 xl:col-span-3">
           <Suspense fallback={<AssigneesSectionSkeleton />}>
@@ -84,7 +91,11 @@ export async function DashboardView({ searchParams }: { searchParams: SearchPara
         <Suspense fallback={<CategoriesSectionSkeleton />}>
           <CategoriesSection range={range} />
         </Suspense>
-        <Upcoming title="Atividades recentes" part="Parte 8" className="md:col-span-2 xl:col-span-1" />
+        <div className="md:col-span-2 xl:col-span-1">
+          <Suspense fallback={<ActivitySectionSkeleton />}>
+            <ActivitySection now={now} />
+          </Suspense>
+        </div>
       </div>
     </>
   );
@@ -96,18 +107,6 @@ function periodParams(range: DashboardRange): Record<string, string> {
   if (range.key !== "personalizado") return { periodo: range.key };
   const { first, last } = windowDays(range.current);
   return { periodo: range.key, de: toIsoDate(first), ate: toIsoDate(last) };
-}
-
-/** Área ainda não implementada, com a parte prevista. */
-function Upcoming({ title, part, className = "" }: { title: string; part: string; className?: string }) {
-  return (
-    <section
-      className={`flex min-h-36 flex-col justify-between rounded-xl border border-dashed border-border-strong bg-surface/40 p-5 ${className}`}
-    >
-      <h3 className="text-sm font-semibold text-muted">{title}</h3>
-      <p className="font-mono text-[11px] tracking-wide text-faint uppercase">Previsto: {part}</p>
-    </section>
-  );
 }
 
 function Heading({ subtitle }: { subtitle: string }) {
