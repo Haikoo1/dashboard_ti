@@ -1,6 +1,7 @@
 # Sistema de Gestão de TI
 
-Sistema de gerenciamento do departamento de TI. Módulo em desenvolvimento: **Dashboard**.
+Sistema de gerenciamento do departamento de TI, para uso local (sem login).
+Módulo concluído: **Dashboard** (Etapa 01). Os demais itens do menu aparecem como "Em breve".
 
 ## Tecnologias
 
@@ -27,7 +28,7 @@ npm install
 cp .env.example .env
 
 # 3. Ligar o banco do projeto (porta 5433, acessível só deste computador)
-#    Na primeira vez, cria a pasta .pgdata/ e os bancos gestao_ti e gestao_ti_demo
+#    Na primeira vez, cria a pasta .pgdata/ e os bancos gestao_ti, gestao_ti_demo e gestao_ti_test
 npm run db:up
 
 # 4. Criar as tabelas e a configuração inicial no banco real
@@ -70,3 +71,58 @@ Acesse http://localhost:3000.
 
 > O banco **não liga sozinho** com o Windows. Rode `npm run db:up` antes de trabalhar.
 > Os dados ficam em `.pgdata/` (fora do Git). Apagar essa pasta apaga todos os dados locais.
+
+## Dashboard
+
+Tudo é calculado a partir dos PRs registrados no banco; nenhum número é estimado.
+
+| Área | O que mostra |
+|---|---|
+| Indicadores | PRs registrados, abertos, em andamento, pendentes, concluídos e atrasados, com comparação ao período anterior |
+| Desempenho | Primeira resposta e tempo de resolução médios, taxa de conclusão e % dentro do prazo |
+| Volume de PRs | Abertos x concluídos por dia, semana ou mês, com dica, totais e tabela |
+| Alertas de atraso | PRs atrasados agora, com os de prioridade crítica primeiro |
+| Desempenho dos técnicos | Tabela ordenável: atribuídos, concluídos, carteira, atrasados, tempo médio e % no prazo |
+| PRs por setor | Participação de cada setor, com comparação |
+| Tempo por categoria | Tempo médio de resolução de cada categoria |
+| Atividades recentes | Linha do tempo das últimas ações em todos os PRs |
+
+O filtro de período (7, 30 ou 90 dias, este ano ou personalizado) e o agrupamento do gráfico
+ficam no endereço da página (ex.: `/dashboard?periodo=90d&agrupar=mes`), então podem ser salvos nos favoritos.
+
+### Regras dos indicadores
+
+- **Horário:** todas as datas seguem o horário de Brasília.
+- **Períodos:** "últimos N dias" vai de 00:00 de N−1 dias atrás até agora; "este ano", de 1º de janeiro até agora;
+  "personalizado" usa dias inteiros (até 731 dias, sem datas futuras).
+- **Comparação:** com o período imediatamente anterior, de mesma duração. Sem PRs antes do período,
+  aparece "Sem base de comparação" (nunca um percentual inventado).
+- **Registrados e concluídos** contam o que aconteceu *dentro* do período. **Abertos, em andamento,
+  pendentes e atrasados** mostram a situação no *fim* do período.
+- **Atrasado:** PR em atendimento (aberto, em andamento ou pendente) com o prazo vencido.
+- **Prazo (SLA) de resolução:** definido pela prioridade — Crítica 4h, Alta 8h, Média 24h, Baixa 72h
+  (valores cadastrados na tabela de prioridades).
+- **Primeira resposta:** da abertura até a primeira ação de alguém que não seja o solicitante
+  (atribuição, comentário ou mudança de status).
+- **Tempo de resolução:** da abertura até a conclusão. **Taxa de conclusão:** dos PRs abertos no período,
+  quantos já foram concluídos (cancelados não contam).
+- **Tempo corrido:** os tempos incluem noites, fins de semana e feriados. O cálculo em horário útil está
+  preparado no código e será ativado quando existir o calendário de expediente.
+- **Alertas e atividades** sempre mostram a situação atual, independente do filtro.
+
+### Regra para o futuro módulo de PRs
+
+A situação de cada PR em qualquer data é reconstruída a partir do histórico (`pr_eventos`).
+Por isso, **toda mudança de status ou de responsável precisa gerar o evento correspondente**.
+Sem isso, as comparações com períodos anteriores ficariam erradas.
+
+### Modo demonstração
+
+Para ver o Dashboard com dados fictícios: rode `npm run db:demo`, defina `APP_DATA_MODE=demo` no `.env`
+e reinicie o `npm run dev`. Uma faixa amarela no topo indica que os dados são fictícios.
+Volte para `APP_DATA_MODE=real` para usar os dados reais.
+
+### Banco desligado
+
+Se o banco não estiver ligado, o Dashboard mostra uma orientação em vez dos números.
+Rode `npm run db:up` e recarregue a página.

@@ -18,6 +18,8 @@ type Props = {
   /** Destaque de alerta (ex.: há PRs atrasados). */
   alert?: boolean;
   href?: string;
+  /** Posição na grade, para a entrada em sequência. */
+  order?: number;
 };
 
 const TONE_CLASS = {
@@ -26,7 +28,7 @@ const TONE_CLASS = {
   neutral: "text-muted",
 } as const;
 
-export function IndicatorCard({ label, icon: Icon, value, meaning, scope, alert = false, href }: Props) {
+export function IndicatorCard({ label, icon: Icon, value, meaning, scope, alert = false, href, order = 0 }: Props) {
   const view = describeComparison(value, meaning);
 
   const body: ReactNode = (
@@ -55,18 +57,20 @@ export function IndicatorCard({ label, icon: Icon, value, meaning, scope, alert 
   );
 
   const className = cn(
-    "relative flex flex-col rounded-xl border bg-surface p-4 transition-[opacity,border-color] sm:p-5",
+    "animate-fade-up relative flex flex-col rounded-xl border bg-surface p-4 transition-[opacity,border-color] sm:p-5",
     "group-has-data-pending:opacity-50",
     alert ? "border-danger/35" : "border-border",
     href && "hover:border-gold-line focus-visible:border-gold-line",
   );
 
   return href ? (
-    <Link href={href} className={className}>
+    <Link href={href} className={className} style={{ animationDelay: `${order * 40}ms` }}>
       {body}
     </Link>
   ) : (
-    <article className={className}>{body}</article>
+    <article className={className} style={{ animationDelay: `${order * 40}ms` }}>
+      {body}
+    </article>
   );
 }
 

@@ -8,12 +8,13 @@ import { Suspense } from "react";
 import { db, getDataMode } from "@/lib/db";
 import { formatWindow, toIsoDate, windowDays } from "../domain/format";
 import { DEFAULT_PERIOD, resolveGranularity, resolvePeriodFromParams, type DashboardRange } from "../domain/period";
-import { hasAnyTicket } from "../queries/shared";
+import { hasAnyTicket, isDatabaseReachable } from "../queries/shared";
 import { ActivitySection, ActivitySectionSkeleton } from "./activity-section";
 import { AlertsSection, AlertsSectionSkeleton } from "./alerts-section";
 import { AssigneesSection, AssigneesSectionSkeleton } from "./assignees-section";
 import { CategoriesSection, CategoriesSectionSkeleton } from "./categories-section";
 import { DashboardEmpty } from "./dashboard-empty";
+import { DatabaseOffline } from "./database-offline";
 import { IndicatorsSection, IndicatorsSectionSkeleton } from "./indicators-section";
 import { PerformanceSection, PerformanceSectionSkeleton } from "./performance-section";
 import { PeriodFilter } from "./period-filter";
@@ -25,6 +26,15 @@ type SearchParams = Record<string, string | string[] | undefined>;
 export async function DashboardView({ searchParams }: { searchParams: SearchParams }) {
   await connection();
   const now = new Date();
+
+  if (!(await isDatabaseReachable(db))) {
+    return (
+      <>
+        <Heading subtitle="Banco de dados indisponível" />
+        <DatabaseOffline />
+      </>
+    );
+  }
 
   if (!(await hasAnyTicket(db))) {
     return (

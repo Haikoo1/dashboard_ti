@@ -17,7 +17,7 @@ export function SectionCard({ id, title, subtitle, actions, className, children 
     <section
       aria-labelledby={id}
       className={cn(
-        "flex min-w-0 flex-col rounded-xl border border-border bg-surface p-4 transition-opacity sm:p-5",
+        "animate-fade-in flex min-w-0 flex-col rounded-xl border border-border bg-surface p-4 transition-opacity sm:p-5",
         "group-has-data-pending:opacity-50",
         className,
       )}

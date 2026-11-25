@@ -78,7 +78,7 @@ export function Topbar({ onOpenMenu, menuOpen, date, banner }: TopbarProps) {
             <span className="grid size-8 place-items-center rounded-full border border-gold-line bg-gold-soft text-gold">
               <UserRound className="size-4" />
             </span>
-            <span className="hidden leading-tight sm:block">
+            <span className="hidden leading-tight whitespace-nowrap sm:block">
               <span className="block text-[13px] font-semibold">Usuário local</span>
               <span className="block text-[11px] text-faint">Sem autenticação</span>
             </span>

@@ -14,7 +14,7 @@ type Props = {
   periodParams: Record<string, string>;
 };
 
-const CARD = "flex flex-col rounded-xl border border-border bg-surface p-4 transition-opacity sm:p-5 group-has-data-pending:opacity-50";
+const CARD = "animate-fade-in flex flex-col rounded-xl border border-border bg-surface p-4 transition-opacity sm:p-5 group-has-data-pending:opacity-50";
 
 export async function VolumeSection({ range, granularity, periodParams }: Props) {
   const series = await getVolumeSeries(db, range.current, granularity);

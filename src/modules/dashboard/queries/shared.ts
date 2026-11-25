@@ -64,6 +64,20 @@ export async function hasTicketsBefore(db: Db, instant: Date): Promise<boolean> 
   return rows[0]?.existe ?? false;
 }
 
+/**
+ * O banco responde? Usado para mostrar uma orientação clara (em vez de uma
+ * tela de erro genérica) quando o banco do projeto está desligado.
+ */
+export async function isDatabaseReachable(db: Db): Promise<boolean> {
+  try {
+    await db.$queryRaw`SELECT 1`;
+    return true;
+  } catch (error) {
+    console.warn("[dashboard] Banco de dados inacessível:", error instanceof Error ? error.message : error);
+    return false;
+  }
+}
+
 /** Existe pelo menos um PR registrado? (decide entre o Dashboard e o estado vazio) */
 export async function hasAnyTicket(db: Db): Promise<boolean> {
   const rows = await db.$queryRaw<{ existe: boolean }[]>`SELECT EXISTS (SELECT 1 FROM prs) AS existe`;

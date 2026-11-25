@@ -22,11 +22,12 @@ export async function IndicatorsSection({ range }: { range: DashboardRange }) {
         Indicadores principais
       </h2>
       <div className={GRID}>
-        <IndicatorCard label="PRs registrados" icon={Inbox} value={cards.registered} meaning="neutral" scope="Abertos no período" />
-        <IndicatorCard label="Abertos" icon={CircleDot} value={cards.open} meaning="neutral" scope={snapshotScope} />
-        <IndicatorCard label="Em andamento" icon={Wrench} value={cards.inProgress} meaning="neutral" scope={snapshotScope} />
-        <IndicatorCard label="Pendentes" icon={CirclePause} value={cards.pending} meaning="lower-is-better" scope={snapshotScope} />
+        <IndicatorCard order={0} label="PRs registrados" icon={Inbox} value={cards.registered} meaning="neutral" scope="Abertos no período" />
+        <IndicatorCard order={1} label="Abertos" icon={CircleDot} value={cards.open} meaning="neutral" scope={snapshotScope} />
+        <IndicatorCard order={2} label="Em andamento" icon={Wrench} value={cards.inProgress} meaning="neutral" scope={snapshotScope} />
+        <IndicatorCard order={3} label="Pendentes" icon={CirclePause} value={cards.pending} meaning="lower-is-better" scope={snapshotScope} />
         <IndicatorCard
+          order={4}
           label="Concluídos"
           icon={CircleCheck}
           value={cards.concluded}
@@ -34,6 +35,7 @@ export async function IndicatorsSection({ range }: { range: DashboardRange }) {
           scope="Concluídos no período"
         />
         <IndicatorCard
+          order={5}
           label="Atrasados"
           icon={AlarmClock}
           value={cards.overdue}
