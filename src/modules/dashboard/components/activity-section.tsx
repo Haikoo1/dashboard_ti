@@ -8,6 +8,7 @@ import {
   History,
   Inbox,
   MessageSquare,
+  PencilLine,
   RotateCcw,
   UserRoundCheck,
   UserRoundX,
@@ -32,6 +33,7 @@ const KIND_STYLE: Record<ActivityKind, { icon: LucideIcon; className: string }> 
   cancelado: { icon: CircleX, className: "text-faint" },
   reaberto: { icon: RotateCcw, className: "text-warning" },
   comentario: { icon: MessageSquare, className: "text-muted" },
+  editado: { icon: PencilLine, className: "text-muted" },
 };
 
 export async function ActivitySection({ now }: { now: Date }) {

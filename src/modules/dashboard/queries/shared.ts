@@ -18,14 +18,28 @@ export const ACTIVE_STATUS_SQL = sql`('ABERTO', 'EM_ANDAMENTO', 'PENDENTE')`;
 
 /**
  * CTE "estado_em": situação de cada PR (já aberto) no instante informado.
- * Colunas: id, prazo_em, setor_id, status, responsavel_id.
+ * Colunas: id, prazo_em (vigente no instante), setor_id, status, responsavel_id.
  */
 export function stateAtCte(at: Date) {
   return sql`
     estado_em AS (
       SELECT
         p.id,
-        p.prazo_em,
+        -- Prazo vigente no instante: o último prazo novo registrado até ele; se o
+        -- prazo só mudou depois, o prazo anterior à primeira mudança; senão, o atual.
+        COALESCE(
+          (
+            SELECT e.prazo_novo_em FROM pr_eventos e
+            WHERE e.pr_id = p.id AND e.prazo_novo_em IS NOT NULL AND e.criado_em <= ${at}::timestamptz
+            ORDER BY e.criado_em DESC, e.id DESC LIMIT 1
+          ),
+          (
+            SELECT e.prazo_anterior_em FROM pr_eventos e
+            WHERE e.pr_id = p.id AND e.prazo_anterior_em IS NOT NULL AND e.criado_em > ${at}::timestamptz
+            ORDER BY e.criado_em ASC, e.id ASC LIMIT 1
+          ),
+          p.prazo_em
+        ) AS prazo_em,
         p.setor_id,
         COALESCE((
           SELECT e.status_novo FROM pr_eventos e

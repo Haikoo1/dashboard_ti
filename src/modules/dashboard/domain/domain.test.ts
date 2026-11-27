@@ -164,5 +164,9 @@ describe("describeActivity", () => {
   it("comentário traz o trecho do texto", () => {
     const a = describeActivity(ev({ type: "COMENTARIO", commentExcerpt: "Trocado o cabo." }));
     expect(a).toMatchObject({ kind: "comentario", action: "comentou no PR-2026-0001", excerpt: "Trocado o cabo." });
+    expect(describeActivity(ev({ type: "DADOS_ALTERADOS" }))).toMatchObject({
+      kind: "editado",
+      action: "editou as informações do PR-2026-0001",
+    });
   });
 });

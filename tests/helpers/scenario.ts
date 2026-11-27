@@ -13,7 +13,7 @@ export function createTestDb(): PrismaClient {
 
 export async function resetDatabase(db: PrismaClient) {
   await db.$executeRawUnsafe(
-    'TRUNCATE TABLE "pr_eventos", "pr_comentarios", "prs", "usuarios", "setores", "prioridades", "categorias" RESTART IDENTITY CASCADE',
+    'TRUNCATE TABLE "pr_eventos", "pr_comentarios", "prs", "usuarios", "setores", "prioridades", "categorias", "contador_prs" RESTART IDENTITY CASCADE',
   );
 }
 
@@ -69,6 +69,8 @@ export async function createTicket(db: PrismaClient, spec: TicketSpec) {
       sectorId: spec.sectorId,
       openedAt: spec.openedAt,
       firstResponseAt,
+      // Prazo de resposta: 1/4 do de resolução (só precisa ser coerente; o Dashboard não o usa).
+      responseDueAt: new Date(spec.openedAt.getTime() + (spec.resolutionSlaMinutes / 4) * 60_000),
       dueAt: new Date(spec.openedAt.getTime() + spec.resolutionSlaMinutes * 60_000),
       closedAt,
     },
@@ -90,12 +92,29 @@ export async function createTicket(db: PrismaClient, spec: TicketSpec) {
       currentAssignee = e.assign;
     } else if ("status" in e) {
       await db.ticketEvent.create({
-        data: { ...common, type: "STATUS_ALTERADO", fromStatus: currentStatus, toStatus: e.status },
+        data: {
+          ...common,
+          type: "STATUS_ALTERADO",
+          fromStatus: currentStatus,
+          toStatus: e.status,
+          // Pendência, conclusão, cancelamento e reabertura exigem texto (regra do banco).
+          detail: "Cenário de teste",
+        },
       });
       currentStatus = e.status;
     } else if ("priority" in e) {
       await db.ticketEvent.create({
-        data: { ...common, type: "PRIORIDADE_ALTERADA", fromPriorityId: currentPriority, toPriorityId: e.priority },
+        data: {
+          ...common,
+          type: "PRIORIDADE_ALTERADA",
+          fromPriorityId: currentPriority,
+          toPriorityId: e.priority,
+          // O cenário mantém o prazo (o Dashboard só precisa dos prazos registrados).
+          fromDueAt: ticket.dueAt,
+          toDueAt: ticket.dueAt,
+          fromResponseDueAt: ticket.responseDueAt,
+          toResponseDueAt: ticket.responseDueAt,
+        },
       });
       currentPriority = e.priority;
     } else {

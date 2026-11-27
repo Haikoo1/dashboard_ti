@@ -16,12 +16,21 @@ import "dotenv/config";
 import { createPrismaClient } from "../src/lib/db";
 import type { Prisma } from "../src/generated/prisma/client";
 import { TicketEventType, TicketStatus, UserRole } from "../src/generated/prisma/enums";
+import { deadlinesAtOpening, deadlinesOnPriorityChange } from "../src/modules/tickets/domain/sla";
 
 const DAYS_OF_HISTORY = 200;
 const RANDOM_SEED = 20261124;
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 const BRT_OFFSET = -3 * HOUR; // horário de Brasília, para simular expediente
+
+const SOLUTIONS = [
+  "Problema identificado e corrigido. Testado com o solicitante.",
+  "Configuração ajustada e serviço reiniciado.",
+  "Equipamento substituído por unidade reserva.",
+  "Acesso liberado conforme solicitado.",
+  "Atualização aplicada e funcionamento normalizado.",
+] as const;
 
 // ---------------------------------------------------------------------------
 // Gerador pseudoaleatório determinístico (mulberry32)
@@ -187,7 +196,7 @@ async function main() {
         const category = categories.find((c) => c.name === categoryName) ?? rnd.pick(categories);
         const requester = rnd.pick(requesters);
         const tech = rnd.weighted(technicians);
-        const dueAt = openedAt + priority.resolutionSlaMinutes * MINUTE;
+        const initial = deadlinesAtOpening(new Date(openedAt), priority);
 
         const state = {
           status: TicketStatus.ABERTO as TicketStatus,
@@ -195,6 +204,8 @@ async function main() {
           firstResponseAt: null as number | null,
           closedAt: null as number | null,
           priorityId: priority.id,
+          dueAt: initial.dueAt,
+          responseDueAt: initial.responseDueAt,
         };
         let clock = openedAt;
         // Registra um evento somente se já "aconteceu" (não gera eventos no futuro).
@@ -203,8 +214,8 @@ async function main() {
           clock = at;
           return true;
         };
-        const changeStatus = (to: TicketStatus, actorId: number) => {
-          events.push({ ticketId, actorId, type: TicketEventType.STATUS_ALTERADO, fromStatus: state.status, toStatus: to, createdAt: new Date(clock) });
+        const changeStatus = (to: TicketStatus, actorId: number, detail?: string) => {
+          events.push({ ticketId, actorId, type: TicketEventType.STATUS_ALTERADO, fromStatus: state.status, toStatus: to, detail, createdAt: new Date(clock) });
           state.status = to;
           if (to === TicketStatus.CONCLUIDO || to === TicketStatus.CANCELADO) state.closedAt = clock;
           markFirstResponse(actorId);
@@ -233,7 +244,7 @@ async function main() {
           if (rnd.chance(0.03)) {
             if (!happen(clock + rnd.between(10, 120) * MINUTE)) break simulate;
             comment(tech.id, "PR cancelado: solicitação duplicada.");
-            changeStatus(TicketStatus.CANCELADO, tech.id);
+            changeStatus(TicketStatus.CANCELADO, tech.id, "Solicitação duplicada de outro PR.");
             break simulate;
           }
 
@@ -245,8 +256,30 @@ async function main() {
           if (rnd.chance(0.06)) {
             const other = rnd.pick(priorities.filter((p) => p.id !== state.priorityId));
             if (!happen(clock + rnd.between(5, 30) * MINUTE)) break simulate;
-            events.push({ ticketId, actorId: tech.id, type: TicketEventType.PRIORIDADE_ALTERADA, fromPriorityId: state.priorityId, toPriorityId: other.id, createdAt: new Date(clock) });
+            // Mesma política de prazos do sistema real (domain/sla.ts).
+            const current = priorities.find((p) => p.id === state.priorityId)!;
+            const next = deadlinesOnPriorityChange(
+              { openedAt: new Date(openedAt), dueAt: state.dueAt, responseDueAt: state.responseDueAt },
+              current,
+              other,
+              new Date(clock),
+            );
+            const responseDueAt = state.firstResponseAt === null ? next.responseDueAt : state.responseDueAt;
+            events.push({
+              ticketId,
+              actorId: tech.id,
+              type: TicketEventType.PRIORIDADE_ALTERADA,
+              fromPriorityId: state.priorityId,
+              toPriorityId: other.id,
+              fromDueAt: state.dueAt,
+              toDueAt: next.dueAt,
+              fromResponseDueAt: state.responseDueAt,
+              toResponseDueAt: responseDueAt,
+              createdAt: new Date(clock),
+            });
             state.priorityId = other.id;
+            state.dueAt = next.dueAt;
+            state.responseDueAt = responseDueAt;
           }
 
           if (rnd.chance(0.35)) {
@@ -258,7 +291,7 @@ async function main() {
           if (rnd.chance(0.22)) {
             if (!happen(clock + rnd.between(20, 180) * MINUTE)) break simulate;
             comment(tech.id, "Aguardando retorno do solicitante.");
-            changeStatus(TicketStatus.PENDENTE, tech.id);
+            changeStatus(TicketStatus.PENDENTE, tech.id, "Aguardando informações do solicitante.");
             // Algumas pendências se arrastam por dias (solicitante demora a responder).
             const pendingHours = rnd.chance(0.3) ? rnd.between(24, 240) : rnd.between(1, 30);
             if (!happen(clock + pendingHours * HOUR)) break simulate;
@@ -273,9 +306,10 @@ async function main() {
             [rnd.between(1.05, 3), 14],
             [rnd.between(3, 30), 10],
           ] as const);
-          const target = Math.max(openedAt + priority.resolutionSlaMinutes * MINUTE * resolutionFactor, clock + 10 * MINUTE);
+          const slaWindow = state.dueAt.getTime() - openedAt;
+          const target = Math.max(openedAt + slaWindow * resolutionFactor, clock + 10 * MINUTE);
           if (!happen(target)) break simulate;
-          changeStatus(TicketStatus.CONCLUIDO, tech.id);
+          changeStatus(TicketStatus.CONCLUIDO, tech.id, rnd.pick(SOLUTIONS));
         }
 
         tickets.push({
@@ -291,7 +325,8 @@ async function main() {
           sectorId: requester.sectorId!,
           openedAt: new Date(openedAt),
           firstResponseAt: state.firstResponseAt === null ? null : new Date(state.firstResponseAt),
-          dueAt: new Date(dueAt),
+          responseDueAt: state.responseDueAt,
+          dueAt: state.dueAt,
           closedAt: state.closedAt === null ? null : new Date(state.closedAt),
         });
       }
@@ -302,6 +337,10 @@ async function main() {
       await tx.ticket.createMany({ data: tickets });
       await tx.ticketComment.createMany({ data: comments });
       await tx.ticketEvent.createMany({ data: events });
+      // Numeração: o próximo PR aberto no sistema continua a sequência de cada ano.
+      for (const [year, last] of sequenceByYear) {
+        await tx.ticketCounter.upsert({ where: { year }, create: { year, last }, update: { last } });
+      }
       // IDs foram definidos manualmente; ajusta os contadores para os próximos registros.
       for (const table of ["prs", "pr_comentarios"]) {
         await tx.$executeRawUnsafe(

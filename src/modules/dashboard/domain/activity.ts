@@ -11,7 +11,8 @@ export type ActivityKind =
   | "concluido"
   | "cancelado"
   | "reaberto"
-  | "comentario";
+  | "comentario"
+  | "editado";
 
 /** Evento com os nomes já resolvidos pelo banco. */
 export type ActivityEvent = {
@@ -81,5 +82,8 @@ export function describeActivity(e: ActivityEvent): Activity {
 
     case TicketEventType.COMENTARIO:
       return { ...base, kind: "comentario", action: `comentou no ${pr}`, excerpt: e.commentExcerpt };
+
+    case TicketEventType.DADOS_ALTERADOS:
+      return { ...base, kind: "editado", action: `editou as informações do ${pr}` };
   }
 }

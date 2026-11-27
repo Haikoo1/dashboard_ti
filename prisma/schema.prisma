@@ -48,8 +48,19 @@ enum TicketEventType {
   PRIORIDADE_ALTERADA
   STATUS_ALTERADO
   COMENTARIO
+  /// Edição de título, descrição ou categoria (valores "de/para" em "alteracoes").
+  DADOS_ALTERADOS
 
   @@map("tipo_evento_pr")
+}
+
+/// Quem pode ver um comentário. Nesta etapa todos são públicos; "INTERNO"
+/// fica reservado para observações da equipe de TI (exige autenticação).
+enum CommentVisibility {
+  PUBLICO
+  INTERNO
+
+  @@map("visibilidade_comentario")
 }
 
 // ---------------------------------------------------------------------------
@@ -148,6 +159,8 @@ model Ticket {
   /// Primeira ação de um técnico (atribuição, comentário ou mudança de status).
   /// Derivado do histórico; gravado uma única vez, pelo sistema, para consultas rápidas.
   firstResponseAt DateTime? @map("primeira_resposta_em") @db.Timestamptz(3)
+  /// Prazo de primeira resposta previsto (SLA de resposta da prioridade).
+  responseDueAt   DateTime  @map("prazo_resposta_em") @db.Timestamptz(3)
   /// Prazo de resolução previsto.
   dueAt           DateTime  @map("prazo_em") @db.Timestamptz(3)
   /// Preenchido quando o status é CONCLUIDO ou CANCELADO; vazio caso contrário.
@@ -175,11 +188,12 @@ model Ticket {
 }
 
 model TicketComment {
-  id        Int      @id @default(autoincrement())
-  ticketId  Int      @map("pr_id")
-  authorId  Int      @map("autor_id")
-  body      String   @map("texto") @db.Text
-  createdAt DateTime @default(now()) @map("criado_em") @db.Timestamptz(3)
+  id         Int               @id @default(autoincrement())
+  ticketId   Int               @map("pr_id")
+  authorId   Int               @map("autor_id")
+  body       String            @map("texto") @db.Text
+  visibility CommentVisibility @default(PUBLICO) @map("visibilidade")
+  createdAt  DateTime          @default(now()) @map("criado_em") @db.Timestamptz(3)
 
   ticket Ticket       @relation(fields: [ticketId], references: [id], onDelete: Restrict)
   author User         @relation(fields: [authorId], references: [id], onDelete: Restrict)
@@ -201,16 +215,29 @@ model TicketEvent {
   createdAt DateTime        @default(now()) @map("criado_em") @db.Timestamptz(3)
 
   // STATUS_ALTERADO (e CRIADO, com toStatus = ABERTO)
-  fromStatus     TicketStatus? @map("status_anterior")
-  toStatus       TicketStatus? @map("status_novo")
+  fromStatus        TicketStatus? @map("status_anterior")
+  toStatus          TicketStatus? @map("status_novo")
   // PRIORIDADE_ALTERADA
-  fromPriorityId Int?          @map("prioridade_anterior_id")
-  toPriorityId   Int?          @map("prioridade_nova_id")
+  fromPriorityId    Int?          @map("prioridade_anterior_id")
+  toPriorityId      Int?          @map("prioridade_nova_id")
   // ATRIBUIDO (toAssigneeId vazio = responsável removido)
-  fromAssigneeId Int?          @map("responsavel_anterior_id")
-  toAssigneeId   Int?          @map("responsavel_novo_id")
+  fromAssigneeId    Int?          @map("responsavel_anterior_id")
+  toAssigneeId      Int?          @map("responsavel_novo_id")
   // COMENTARIO
-  commentId      Int?          @unique @map("comentario_id")
+  commentId         Int?          @unique @map("comentario_id")
+  // Prazos antes/depois de uma mudança de prioridade (rastreabilidade e
+  // reconstrução correta de "atrasado" em datas passadas).
+  fromDueAt         DateTime?     @map("prazo_anterior_em") @db.Timestamptz(3)
+  toDueAt           DateTime?     @map("prazo_novo_em") @db.Timestamptz(3)
+  fromResponseDueAt DateTime?     @map("prazo_resposta_anterior_em") @db.Timestamptz(3)
+  toResponseDueAt   DateTime?     @map("prazo_resposta_novo_em") @db.Timestamptz(3)
+  /// Texto obrigatório em algumas mudanças de status: motivo da pendência,
+  /// solução aplicada, justificativa de cancelamento ou de reabertura.
+  detail            String?       @map("detalhe") @db.Text
+  /// Observações finais (opcional) na conclusão.
+  notes             String?       @map("observacoes") @db.Text
+  /// DADOS_ALTERADOS: { campo: { de, para } }.
+  changes           Json?         @map("alteracoes")
 
   ticket       Ticket         @relation(fields: [ticketId], references: [id], onDelete: Restrict)
   actor        User           @relation("EventActor", fields: [actorId], references: [id], onDelete: Restrict)
@@ -225,4 +252,13 @@ model TicketEvent {
   @@index([type, createdAt])
   @@index([actorId])
   @@map("pr_eventos")
+}
+
+/// Último número de PR emitido em cada ano (PR-AAAA-NNNN). Atualizado na mesma
+/// transação da abertura: números únicos, sequenciais e sem buracos.
+model TicketCounter {
+  year Int @id @map("ano")
+  last Int @map("ultimo")
+
+  @@map("contador_prs")
 }
