@@ -10,10 +10,12 @@ type AppShellProps = {
   banner: ReactNode;
   /** Data atual exibida na barra superior. */
   date: ReactNode;
+  /** Seletor do usuário atual. */
+  profile: ReactNode;
 };
 
 /** Estrutura comum a todas as páginas do sistema: menu lateral + barra superior + conteúdo. */
-export function AppShell({ children, banner, date }: AppShellProps) {
+export function AppShell({ children, banner, date, profile }: AppShellProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const closeMenu = useCallback(() => setMenuOpen(false), []);
 
@@ -29,7 +31,7 @@ export function AppShell({ children, banner, date }: AppShellProps) {
     <div className="flex min-h-dvh">
       <Sidebar open={menuOpen} onClose={closeMenu} />
       <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar onOpenMenu={() => setMenuOpen(true)} menuOpen={menuOpen} date={date} banner={banner} />
+        <Topbar onOpenMenu={() => setMenuOpen(true)} menuOpen={menuOpen} date={date} banner={banner} profile={profile} />
         <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
           <div className="mx-auto w-full max-w-[1600px]">{children}</div>
         </main>

@@ -72,6 +72,25 @@ Acesse http://localhost:3000.
 > O banco **não liga sozinho** com o Windows. Rode `npm run db:up` antes de trabalhar.
 > Os dados ficam em `.pgdata/` (fora do Git). Apagar essa pasta apaga todos os dados locais.
 
+## Primeiros passos no banco real
+
+O banco real começa vazio (sem usuários nem setores). Em **Configurações → Usuários e setores**:
+
+1. cadastre os setores da empresa;
+2. cadastre um administrador (ele passa a ser o usuário atual automaticamente);
+3. cadastre técnicos e solicitantes.
+
+Enquanto não existir administrador ativo, os cadastros ficam liberados. Depois, só administradores
+podem cadastrar ou editar. Nada é excluído: usuários e setores fora de uso são desativados.
+
+### Usuário atual (sem login)
+
+O seletor no canto superior direito define quem está usando o sistema neste navegador. Esse usuário
+fica registrado em cada ação (abertura, atribuição, comentários...).
+
+> **Limitação de segurança:** o sistema não tem autenticação. Qualquer pessoa com acesso ao computador
+> pode trocar de usuário. A identificação serve para **registrar** quem fez cada ação, não para **proteger**.
+
 ## Dashboard
 
 Tudo é calculado a partir dos PRs registrados no banco; nenhum número é estimado.

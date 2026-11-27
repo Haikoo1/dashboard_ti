@@ -7,7 +7,10 @@ const nextConfig: NextConfig = {
   // A página inicial do sistema é o Dashboard (redirecionamento temporário,
   // para não ficar gravado no navegador caso a página inicial mude no futuro).
   redirects() {
-    return [{ source: "/", destination: "/dashboard", permanent: false }];
+    return [
+      { source: "/", destination: "/dashboard", permanent: false },
+      { source: "/configuracoes", destination: "/configuracoes/usuarios", permanent: false },
+    ];
   },
   turbopack: {
     rules: {

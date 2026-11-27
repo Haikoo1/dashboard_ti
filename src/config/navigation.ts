@@ -48,7 +48,7 @@ export const NAVIGATION: NavGroup[] = [
     label: "Gestão",
     items: [
       { label: "Relatórios", href: "/relatorios", icon: FileBarChart, available: false },
-      { label: "Configurações", href: "/configuracoes", icon: Settings, available: false },
+      { label: "Configurações", href: "/configuracoes", icon: Settings, available: true },
     ],
   },
 ];

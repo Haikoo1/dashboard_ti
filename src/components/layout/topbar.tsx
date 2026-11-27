@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { usePathname } from "next/navigation";
-import { Bell, Menu, Search, UserRound } from "lucide-react";
+import { Bell, Menu, Search } from "lucide-react";
 import { findNavItem } from "@/config/navigation";
 
 type TopbarProps = {
@@ -12,14 +12,16 @@ type TopbarProps = {
   date: ReactNode;
   /** Faixa do modo demonstração (fica fixa junto com a barra). */
   banner: ReactNode;
+  /** Seletor do usuário atual (renderizado no servidor). */
+  profile: ReactNode;
 };
 
 /**
- * Barra superior: título da página, data, pesquisa, notificações e perfil.
- * Pesquisa, notificações e perfil são apenas estrutura visual nesta etapa;
- * ficam identificados como indisponíveis e não exibem dados inventados.
+ * Barra superior: título da página, data, pesquisa, notificações e usuário atual.
+ * Pesquisa e notificações ainda são apenas estrutura visual; ficam
+ * identificados como indisponíveis e não exibem dados inventados.
  */
-export function Topbar({ onOpenMenu, menuOpen, date, banner }: TopbarProps) {
+export function Topbar({ onOpenMenu, menuOpen, date, banner, profile }: TopbarProps) {
   const pathname = usePathname();
   const item = findNavItem(pathname);
   const title = item?.pageTitle ?? item?.label ?? "Gestão de TI";
@@ -70,19 +72,8 @@ export function Topbar({ onOpenMenu, menuOpen, date, banner }: TopbarProps) {
 
           <span aria-hidden className="mx-1 hidden h-6 w-px bg-border sm:block" />
 
-          {/* Perfil (sem login nesta etapa) */}
-          <div
-            className="flex items-center gap-2.5 rounded-lg py-1 pr-1 sm:pr-2"
-            title="Autenticação ainda não implementada"
-          >
-            <span className="grid size-8 place-items-center rounded-full border border-gold-line bg-gold-soft text-gold">
-              <UserRound className="size-4" />
-            </span>
-            <span className="hidden leading-tight whitespace-nowrap sm:block">
-              <span className="block text-[13px] font-semibold">Usuário local</span>
-              <span className="block text-[11px] text-faint">Sem autenticação</span>
-            </span>
-          </div>
+          {/* Usuário atual (sem login: identifica, não autentica) */}
+          {profile}
         </div>
       </div>
     </header>

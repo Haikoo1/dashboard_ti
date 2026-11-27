@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { AppShell } from "@/components/layout/app-shell";
 import { CurrentDate, CurrentDateFallback } from "@/components/layout/current-date";
 import { DemoBanner } from "@/components/layout/demo-banner";
+import { CurrentUserMenu, CurrentUserMenuFallback } from "@/modules/people/components/current-user-menu";
 
 export default function SistemaLayout({ children }: LayoutProps<"/">) {
   return (
@@ -16,6 +17,11 @@ export default function SistemaLayout({ children }: LayoutProps<"/">) {
       date={
         <Suspense fallback={<CurrentDateFallback />}>
           <CurrentDate />
+        </Suspense>
+      }
+      profile={
+        <Suspense fallback={<CurrentUserMenuFallback />}>
+          <CurrentUserMenu />
         </Suspense>
       }
     >
