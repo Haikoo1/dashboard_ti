@@ -3,7 +3,9 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { getRecentActivity, getStatusSnapshot } from "@/modules/dashboard";
+import type { TicketListFilters } from "@/modules/tickets/domain/list-filters";
 import { TicketError } from "@/modules/tickets/domain/rules";
+import { getTicketSummary, listTickets } from "@/modules/tickets/queries/list";
 import {
   addComment,
   assignTicket,
@@ -400,5 +402,80 @@ describe("integração com o Dashboard", () => {
     await changeTicketPriority(db, ids.tech, { ticketId: t.id, priorityId: ids.baixa }, { now: at(10) });
     expect((await getStatusSnapshot(db, at(5))).overdue).toBe(1); // antes da mudança: prazo +4h vencido
     expect((await getStatusSnapshot(db, at(11))).overdue).toBe(0); // depois: prazo +72h
+  });
+});
+
+describe("listagem de PRs", () => {
+  const filters = (over: Partial<TicketListFilters> = {}): TicketListFilters => ({ sort: "abertura", direction: "desc", page: 1, ...over });
+
+  async function scenario() {
+    const a = await open({ title: "Impressora do RH sem tinta", priorityId: ids.critica, assigneeId: ids.tech }, ids.tech); // vence +4h
+    const b = await open({ title: "Senha do e-mail expirada", priorityId: ids.baixa }, ids.requester, at(1)); // vence +73h
+    const c = await createTicket(
+      db,
+      ids.tech,
+      { title: "Monitor piscando", description: "O monitor pisca a cada minuto.", requesterId: ids.requester2, categoryId: ids.software, priorityId: ids.alta },
+      { now: at(2) },
+    ); // vence +10h
+    await changeTicketStatus(db, ids.tech, { ticketId: c.id, to: "PENDENTE", detail: "Aguardando o usuário" }, { now: at(3) });
+    return { a, b, c };
+  }
+
+  it("pesquisa por número, título e solicitante (sem diferenciar maiúsculas)", async () => {
+    const { a, c } = await scenario();
+    const now = at(3);
+    expect((await listTickets(db, filters({ q: a.number }), now)).items.map((t) => t.id)).toEqual([a.id]);
+    expect((await listTickets(db, filters({ q: "monitor" }), now)).items.map((t) => t.id)).toEqual([c.id]);
+    expect((await listTickets(db, filters({ q: "BRUNO" }), now)).items.map((t) => t.id)).toEqual([c.id]);
+  });
+
+  it("filtros por status, responsável, categoria, setor e situação", async () => {
+    const { a, b, c } = await scenario();
+    const ids_ = async (f: Partial<TicketListFilters>, now = at(3)) => (await listTickets(db, filters(f), now)).items.map((t) => t.id).sort();
+    expect(await ids_({ status: "PENDENTE" })).toEqual([c.id]);
+    expect(await ids_({ assignee: ids.tech })).toEqual([a.id]);
+    // Colocar como pendente não exige responsável: "c" continua sem ninguém.
+    expect(await ids_({ assignee: "nenhum" })).toEqual([b.id, c.id].sort());
+    expect(await ids_({ categoryId: ids.software })).toEqual([c.id]);
+    expect(await ids_({ sectorId: ids.sectorFin })).toEqual([a.id, b.id, c.id].sort());
+    expect(await ids_({ situation: "critico" })).toEqual([a.id]);
+    expect(await ids_({ situation: "atrasado" }, at(5))).toEqual([a.id]);
+    // Às 3h30: "a" (prazo 4h, total 4h) tem 30 min restantes = 12,5% → próximo; "c" (prazo 10h) não.
+    expect(await ids_({ situation: "proximo" }, at(3.5))).toEqual([a.id]);
+  });
+
+  it("período de abertura em dias inteiros (horário de Brasília) e ordenação", async () => {
+    await scenario();
+    const late = await open({ title: "Aberto no dia seguinte" }, ids.requester, mar(11, 23, 30));
+    const day10 = await listTickets(db, filters({ openedFrom: "2026-03-10", openedTo: "2026-03-10" }), at(48));
+    expect(day10.total).toBe(3);
+    const day11 = await listTickets(db, filters({ openedFrom: "2026-03-11" }), at(48));
+    expect(day11.items.map((t) => t.id)).toEqual([late.id]);
+
+    const byDue = await listTickets(db, filters({ sort: "prazo", direction: "asc" }), at(3));
+    const dues = byDue.items.map((t) => t.dueAt.getTime());
+    expect(dues).toEqual([...dues].sort((x, y) => x - y));
+    const byPriority = await listTickets(db, filters({ sort: "prioridade", direction: "asc" }), at(3));
+    expect(byPriority.items[0].priority.name).toBe("Crítica");
+  });
+
+  it("paginação: 20 por página e página além do fim volta para a última", async () => {
+    await Promise.all(Array.from({ length: 23 }, () => open()));
+    const p1 = await listTickets(db, filters(), at(1));
+    expect(p1).toMatchObject({ total: 23, pageCount: 2, page: 1 });
+    expect(p1.items).toHaveLength(20);
+    const p9 = await listTickets(db, filters({ page: 9 }), at(1));
+    expect(p9).toMatchObject({ page: 2 });
+    expect(p9.items).toHaveLength(3);
+  });
+
+  it("indicadores da listagem batem com o Dashboard", async () => {
+    await scenario();
+    for (const now of [at(3), at(5), at(80)]) {
+      const summary = await getTicketSummary(db, now);
+      const dash = await getStatusSnapshot(db, now);
+      expect({ open: summary.open, inProgress: summary.inProgress, pending: summary.pending, overdue: summary.overdue }).toEqual(dash);
+      expect((await listTickets(db, filters({ situation: "atrasado" }), now)).total).toBe(dash.overdue);
+    }
   });
 });

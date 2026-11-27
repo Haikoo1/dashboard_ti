@@ -32,7 +32,7 @@ export const NAVIGATION: NavGroup[] = [
     label: "Operação",
     items: [
       { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard, available: true },
-      { label: "PRs", href: "/prs", icon: Ticket, available: false, pageTitle: "Pedidos de Requisição" },
+      { label: "PRs", href: "/prs", icon: Ticket, available: true, pageTitle: "Pedidos de Requisição" },
       { label: "Histórico", href: "/historico", icon: History, available: false },
     ],
   },
