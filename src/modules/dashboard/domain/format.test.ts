@@ -91,6 +91,7 @@ describe("durações e percentuais", () => {
     expect(formatDuration(0.4)).toBe("< 1 min");
     expect(formatDuration(45)).toBe("45 min");
     expect(formatDuration(125)).toBe("2h 05min");
+    expect(formatDuration(120)).toBe("2h");
     expect(formatDuration(26.25)).toBe("26 min");
     expect(formatDuration(24 * 60)).toBe("1d");
     expect(formatDuration(3 * 24 * 60 + 4 * 60 + 10)).toBe("3d 4h");
@@ -106,7 +107,7 @@ describe("durações e percentuais", () => {
     expect(describeComparison(compare(90, 120), "lower-is-better", formatDuration)).toMatchObject({
       change: "−25%",
       tone: "good",
-      detail: "antes: 2h 00min",
+      detail: "antes: 2h",
     });
   });
 });

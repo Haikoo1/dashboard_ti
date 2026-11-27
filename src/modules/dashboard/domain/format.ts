@@ -26,12 +26,12 @@ export function formatPercent(value: number): string {
   return `${new Intl.NumberFormat("pt-BR", { maximumFractionDigits: digits }).format(value)}%`;
 }
 
-/** Duração legível: "< 1 min", "45 min", "2h 05min", "3d 4h". */
+/** Duração legível: "< 1 min", "45 min", "2h", "2h 05min", "3d 4h". */
 export function formatDuration(minutes: number): string {
   const total = Math.round(minutes);
   if (total < 1) return "< 1 min";
   if (total < 60) return `${total} min`;
-  if (total < 24 * 60) return `${Math.floor(total / 60)}h ${pad(total % 60)}min`;
+  if (total < 24 * 60) return total % 60 === 0 ? `${total / 60}h` : `${Math.floor(total / 60)}h ${pad(total % 60)}min`;
   const days = Math.floor(total / (24 * 60));
   const hours = Math.floor((total % (24 * 60)) / 60);
   return hours === 0 ? `${days}d` : `${days}d ${hours}h`;

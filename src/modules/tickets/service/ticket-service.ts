@@ -57,9 +57,9 @@ export async function createTicket(db: Db, actorId: number, input: CreateTicketI
   return db.$transaction(async (tx) => {
     const actor = await loadActor(tx, actorId);
     const requester = await tx.user.findUnique({ where: { id: data.requesterId } });
-    if (!requester?.active) throw new TicketError("DADOS_INVALIDOS", "Solicitante não encontrado ou inativo.");
+    if (!requester?.active) throw new TicketError("DADOS_INVALIDOS", "Solicitante não encontrado ou inativo.", "requesterId");
     if (requester.sectorId === null) {
-      throw new TicketError("DADOS_INVALIDOS", "O solicitante não tem setor cadastrado. Atualize o cadastro dele antes.");
+      throw new TicketError("DADOS_INVALIDOS", "O solicitante não tem setor cadastrado. Atualize o cadastro dele antes.", "requesterId");
     }
     if (!isStaff(actor.role)) {
       if (actor.id !== requester.id) throw new TicketError("SEM_PERMISSAO", "Solicitantes só podem abrir PRs em seu próprio nome.");
@@ -70,8 +70,8 @@ export async function createTicket(db: Db, actorId: number, input: CreateTicketI
       tx.category.findUnique({ where: { id: data.categoryId } }),
       tx.priority.findUnique({ where: { id: data.priorityId } }),
     ]);
-    if (!category?.active) throw new TicketError("DADOS_INVALIDOS", "Categoria inválida.");
-    if (!priority?.active) throw new TicketError("DADOS_INVALIDOS", "Prioridade inválida.");
+    if (!category?.active) throw new TicketError("DADOS_INVALIDOS", "Categoria inválida.", "categoryId");
+    if (!priority?.active) throw new TicketError("DADOS_INVALIDOS", "Prioridade inválida.", "priorityId");
     const assignee = data.assigneeId ? await loadAssignee(tx, data.assigneeId) : null;
 
     const number = await nextTicketNumber(tx, ticketNumberYear(now));
@@ -413,8 +413,9 @@ export async function addComment(db: Db, actorId: number, input: { ticketId: num
 function parse<S extends z.ZodType>(schema: S, value: unknown, label?: string): z.output<S> {
   const result = schema.safeParse(value);
   if (!result.success) {
-    const message = result.error.issues[0]?.message ?? "Dados inválidos.";
-    throw new TicketError("DADOS_INVALIDOS", label ? message.replace("o texto", label) : message);
+    const issue = result.error.issues[0];
+    const message = issue?.message ?? "Dados inválidos.";
+    throw new TicketError("DADOS_INVALIDOS", label ? message.replace("o texto", label) : message, issue?.path[0]?.toString());
   }
   return result.data;
 }
@@ -440,7 +441,7 @@ async function loadStaffActor(tx: Tx, actorId: number): Promise<User> {
 async function loadAssignee(tx: Tx, userId: number): Promise<User> {
   const user = await tx.user.findUnique({ where: { id: userId } });
   if (!user || !canBeAssignee(user)) {
-    throw new TicketError("DADOS_INVALIDOS", "O responsável precisa ser um técnico ou administrador ativo.");
+    throw new TicketError("DADOS_INVALIDOS", "O responsável precisa ser um técnico ou administrador ativo.", "assigneeId");
   }
   return user;
 }

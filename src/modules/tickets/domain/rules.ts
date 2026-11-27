@@ -32,6 +32,8 @@ export class TicketError extends Error {
   constructor(
     readonly code: TicketErrorCode,
     message: string,
+    /** Campo do formulário relacionado ao erro, quando houver. */
+    readonly field?: string,
   ) {
     super(message);
     this.name = "TicketError";

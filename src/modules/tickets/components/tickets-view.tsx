@@ -1,5 +1,5 @@
 // Conteúdo da página /prs, montado no servidor a cada acesso.
-import { AlarmClock, CircleDot, CirclePause, Flame, Inbox, Plus, SearchX, Wrench, type LucideIcon } from "lucide-react";
+import { AlarmClock, CircleCheck, CircleDot, CirclePause, Flame, Inbox, Plus, SearchX, Wrench, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { connection } from "next/server";
 import { db } from "@/lib/db";
@@ -27,6 +27,10 @@ export async function TicketsView({ searchParams }: { searchParams: SearchParams
     countAllTickets(db),
   ]);
   const filtered = hasActiveFilters(filters);
+  // Confirmação após a abertura (?criado=PR-AAAA-NNNN). Só exibe números de PRs existentes.
+  const createdParam = Array.isArray(searchParams.criado) ? searchParams.criado[0] : searchParams.criado;
+  const created =
+    createdParam && (await db.ticket.findUnique({ where: { number: createdParam }, select: { number: true } }))?.number;
 
   return (
     <>
@@ -37,16 +41,21 @@ export async function TicketsView({ searchParams }: { searchParams: SearchParams
             {formatNumber(totalTickets)} {totalTickets === 1 ? "PR registrado" : "PRs registrados"} no sistema
           </p>
         </div>
-        {/* A abertura de PRs chega na próxima entrega. */}
-        <span
-          title="Disponível na próxima entrega"
-          className="inline-flex w-fit cursor-not-allowed items-center gap-2 rounded-lg border border-border bg-surface px-3.5 py-2 text-xs font-semibold text-faint"
+        <Link
+          href="/prs/novo"
+          className="inline-flex w-fit items-center gap-2 rounded-lg bg-gold px-3.5 py-2 text-xs font-semibold text-bg transition-colors hover:bg-gold-bright"
         >
           <Plus className="size-4" aria-hidden />
           Novo PR
-          <span className="rounded border border-border px-1.5 py-px text-[10px] tracking-wide uppercase">Em breve</span>
-        </span>
+        </Link>
       </div>
+
+      {created && (
+        <p role="status" className="animate-fade-in flex items-center gap-2 rounded-lg border border-success/30 bg-success/10 px-3.5 py-2.5 text-sm text-success">
+          <CircleCheck className="size-4 shrink-0" aria-hidden />
+          PR <strong className="font-mono">{created}</strong> aberto com sucesso.
+        </p>
+      )}
 
       <SummaryCards summary={summary} />
 

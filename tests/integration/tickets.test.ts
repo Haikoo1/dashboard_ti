@@ -173,6 +173,15 @@ describe("abertura de PR", () => {
     expect(await counts()).toEqual({ prs: 0, evs: 0, comments: 0, counter: [] });
   });
 
+  it("erros indicam o campo do formulário", async () => {
+    const field = async (p: Promise<unknown>) => p.then(() => null, (e: TicketError) => e.field);
+    expect(await field(open({ title: "ab" }))).toBe("title");
+    expect(await field(open({ description: "" }))).toBe("description");
+    expect(await field(open({ requesterId: ids.noSector }, ids.tech))).toBe("requesterId");
+    expect(await field(open({ priorityId: 9999 }))).toBe("priorityId");
+    expect(await field(open({ assigneeId: ids.requester2 }, ids.tech))).toBe("assigneeId");
+  });
+
   it("solicitante só abre PR em seu nome e sem definir responsável", async () => {
     await expectError(open({ requesterId: ids.requester2 }), "SEM_PERMISSAO");
     await expectError(open({ assigneeId: ids.tech }), "SEM_PERMISSAO");
